@@ -11,4 +11,3 @@ app = flask.Flask(__name__)
 def index():
     Time= time.strftime("%H:%M:%S")
     return Time+"\n Serving from "+h_name+" ("+IP_addres+")\n"
-
