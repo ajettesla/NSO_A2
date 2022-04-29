@@ -1,13 +1,14 @@
 import flask
-import platform
 import time
+import socket
+
+h_name = socket.gethostname()
+IP_addres = socket.gethostbyname(h_name)
 
 app = flask.Flask(__name__)
 
 @app.route('/')
 def index():
-    host = flask.request.host
-    hostname = platform.platform()
     Time= time.strftime("%H:%M:%S")
-    return Time+" Serving from "+host+" ("+hostname+")\n"
+    return Time+"\n Serving from "+h_name+" ("+IP_addres+")\n"
 
