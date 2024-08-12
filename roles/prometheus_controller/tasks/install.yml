@@ -1,0 +1,34 @@
+- name: creating necessary directory
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: '0755'
+    state: directory
+  loop:
+  - "{{ prometheus.install_dir }}"
+  - "{{ prometheus.data_dir }}"
+  - "{{ prometheus.config_dir }}"
+
+- name: Download Prometheus binary
+  ansible.builtin.get_url:
+    url: "{{ prometheus.prometheus_binary_url }}"
+    dest: "/tmp/prometheus.tar.gz"
+
+- name: Extract Prometheus
+  ansible.builtin.unarchive:
+    src: "/tmp/prometheus.tar.gz"
+    dest: "{{ prometheus.install_dir }}"
+    remote_src: yes
+    creates: "{{ prometheus.install_dir }}/prometheus"
+
+- name: Move Prometheus binaries to /usr/local/bin
+  ansible.builtin.command:
+    cmd: mv {{ prometheus.install_dir }}/prometheus-{{ prometheus.version }}.linux-amd64/prometheus /usr/local/bin/
+
+
+
+
+
+
+

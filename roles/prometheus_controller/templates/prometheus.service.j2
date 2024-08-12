@@ -1,0 +1,13 @@
+[Unit]
+Description=Prometheus Service
+After=network.target
+
+[Service]
+User=root
+ExecStart=/usr/local/bin/prometheus \
+--config.file={{ prometheus.config_dir }}/prometheus.yml \
+--storage.tsdb.path={{ prometheus.data_dir }}
+Restart=always
+
+[Install]
+ WantedBy=multi-user.target

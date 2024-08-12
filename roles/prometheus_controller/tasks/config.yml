@@ -1,0 +1,25 @@
+- name: copy Prometheus template configuration files
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ prometheus.config_dir }}/prometheus.yml"
+    owner: root
+    group: root
+    mode: '0744'
+
+- name: copy systemd template
+  template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: '0744'
+
+- name: Reload systemd to apply changes
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Enable and start Prometheus service
+  ansible.builtin.systemd:
+    name: prometheus
+    enabled: yes
+    state: started
