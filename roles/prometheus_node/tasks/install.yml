@@ -1,0 +1,11 @@
+- name: Download Node Exporter binary
+  ansible.builtin.get_url:
+    url: "{{ prometheus.node_exporter_binary_url }}"
+    dest: "/tmp/node_exporter.tar.gz"
+
+- name: Extract Node Exporter
+  ansible.builtin.unarchive:
+    src: "/tmp/node_exporter.tar.gz"
+    dest: "/usr/local/bin/"
+    remote_src: yes
+    creates: "/usr/local/bin/node_exporter"
