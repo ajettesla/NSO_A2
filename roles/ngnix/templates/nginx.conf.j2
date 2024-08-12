@@ -1,0 +1,20 @@
+load_module /usr/lib/nginx/modules/ngx_stream_module.so;
+
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+stream {
+    upstream snmp_servers {
+        {% for host in groups['dev'] %}
+        server {{ hostvars[host].ansible_default_ipv4.address }}:161;
+        {% endfor %}
+    }
+
+    server {
+        listen 0.0.0.0:161 udp;
+        proxy_pass snmp_servers;
+    }
+}
