@@ -1,0 +1,16 @@
+- name: Install Keepalived
+  apt:
+    name: keepalived
+    state: present
+
+- name: Install openstack
+  apt:
+    name: python3-openstackclient
+    state: present
+
+- name: Install openstack
+  apt:
+    name: jq
+    state: present
+
+

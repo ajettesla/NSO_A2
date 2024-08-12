@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# Source the OpenStack credentials
+source /opt/openrc_file
+
+# Define the floating IP
+FLOATING_IP="{{ floatingIp.haproxy }}"  # Ensure this is interpolated correctly
+
+# Determine the hostname and set the IDs
+if [[ "$(hostname -f)" == "proxy-1" ]]; then
+    ID="proxy_1"
+    AID="proxy_2"
+else
+    ID="proxy_2"
+    AID="proxy_1"
+fi
+
+ip addr show | grep -q $FLOATING_IP
+
+# Check if the previous command was successful
+if [ $? -eq 0 ]; then
+
+    # Function to check if the floating IP is assigned to the given instance
+    check_ip_assigned() {
+        openstack server show "$ID" -f json | jq -r '.addresses' | grep -q "$FLOATING_IP"
+    }
+
+    # Check if the floating IP is assigned to the current instance
+    if check_ip_assigned "$ID"; then
+        echo "$(date): Floating IP $FLOATING_IP is already assigned to instance $ID." >> /var/log/keepalived_notify.log
+    else
+        echo "$(date): Floating IP $FLOATING_IP is not assigned to instance $ID. Performing reassignment." >> /var/log/keepalived_notify.log
+        openstack server remove floating ip "$AID" "$FLOATING_IP"
+        if [ $? -ne 0 ]; then
+            echo "$(date): Failed to remove floating IP $FLOATING_IP from instance $AID. Retrying." >> /var/log/keepalived_notify.log
+            openstack server remove floating ip "$AID" "$FLOATING_IP"
+            if [ $? -ne 0 ]; then
+                echo "$(date): Failed to remove floating IP $FLOATING_IP from instance $AID on retry." >> /var/log/keepalived_notify.log
+            else
+                echo "$(date): Successfully removed floating IP $FLOATING_IP from instance $AID on retry." >> /var/log/keepalived_notify.log
+            fi
+        else
+            echo "$(date): Successfully removed floating IP $FLOATING_IP from instance $AID." >> /var/log/keepalived_notify.log
+        fi
+
+        openstack server add floating ip "$ID" "$FLOATING_IP"
+        if [ $? -ne 0 ]; then
+            echo "$(date): Failed to add floating IP $FLOATING_IP to instance $ID. Retrying." >> /var/log/keepalived_notify.log
+            openstack server add floating ip "$ID" "$FLOATING_IP"
+            if [ $? -ne 0 ]; then
+                echo "$(date): Failed to add floating IP $FLOATING_IP to instance $ID on retry." >> /var/log/keepalived_notify.log
+            else
+                echo "$(date): Successfully added floating IP $FLOATING_IP to instance $ID on retry." >> /var/log/keepalived_notify.log
+            fi
+        else
+            echo "$(date): Successfully added floating IP $FLOATING_IP to instance $ID." >> /var/log/keepalived_notify.log
+        fi
+    fi
+fi

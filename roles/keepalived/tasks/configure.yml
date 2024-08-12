@@ -1,0 +1,36 @@
+- name: Copy template Keepalived configuration for proxy_1
+  template:
+    src: keepalived.proxy_1.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    mode: '0644'
+    owner: root
+    group: root
+  when: inventory_hostname == 'proxy_1'
+  notify: Restart Keepalived Service
+
+- name: Copy template Keepalived configuration for proxy_2
+  template:
+    src: keepalived.proxy_2.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    mode: '0644'
+    owner: root
+    group: root
+  when: inventory_hostname == 'proxy_2'
+  notify: Restart Keepalived Service
+
+- name: Copy template Keepalived configuration for proxy_2
+  template:
+    src: script.sh.j2
+    dest: /etc/keepalived/script.sh
+    mode: '0744'
+    owner: root
+    group: root
+
+- name: copy file openstack file to proxy server
+  copy:
+    src: openrc_file
+    dest: /opt/openrc_file
+    mode: '0644'
+    owner: root
+    group: root
+
