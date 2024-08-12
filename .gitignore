@@ -1,0 +1,9 @@
+# Ignore any files starting with 'key'
+key*
+*.pem
+*.txt
+
+
+
+
+

@@ -1,0 +1,18 @@
+---
+- name: application loading
+  hosts: dev
+  become: true
+  roles: 
+    
+
+- name: loadbalancer
+  hosts: proxy
+  become: true
+  roles:
+  
+     
+- name: self
+  hosts: local
+  become: true
+  roles: 
+  
