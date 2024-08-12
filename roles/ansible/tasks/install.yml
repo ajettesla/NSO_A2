@@ -16,9 +16,7 @@
   file:
     path: /opt/NSO_A2
     state: absent
-    recurse: yes
   ignore_errors: yes
-
 
 - name: Copy Ansible folder to bastion
   copy:
@@ -28,14 +26,11 @@
     group: root
     mode: '0755'
 
-
 - name: Unzip the archive
   unarchive:
     src: /opt/NSO_A2.zip
     dest: /opt/
     remote_src: yes
-    extra_opts: ['-j']
-
 
 - name: Print bastion and proxy IP addresses
   debug:

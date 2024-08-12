@@ -117,8 +117,5 @@ fi
 
 rm -rf ${sshkey}.pem
 
-rm -rf openstack_inventory
-
-rm -rf NSO_final_project/
 
 

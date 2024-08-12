@@ -174,21 +174,22 @@ while true; do
 
         echo " $(date +%T) Inventory file generated: $inventory_file"
 
-        cp "$inventory_file" NSO_final_project/environments/prod
+        cp "$inventory_file" environments/prod
 
-        cp "${sshkey}.pem" NSO_final_project/
+        rm -rf $inventory_file
 
-        chmod 600 "NSO_final_project/${sshkey}.pem" > /dev/null 2>&1
+        chmod 600 "${sshkey}.pem" > /dev/null 2>&1
 
-        rm -rf NSO_final_project/roles/ansible/files/NSO_final_project.zip > /dev/null 2>&1
+        rm -rf roles/ansible/files/*.zip > /dev/null 2>&1
 
-        zip -r NSO_final_project/roles/ansible/files/NSO_final_project.zip NSO_final_project > /dev/null 2>&1
+        cd ..
 
-        cd NSO_final_project
+        zip -r NSO_A2/roles/ansible/files/NSO_A2.zip NSO_A2 > /dev/null 2>&1
+        
+        cd NSO_A2/
 
         ansible-playbook app.yml
         
-        cd ..
     else
         echo " $(date +%T) No changes were made, skipping inventory update and Ansible playbook execution."
     fi
