@@ -149,7 +149,6 @@ floating_ip_haproxy=$(openstack floating ip create --tag ${tag}haproxy_ip ext-ne
 
 if [ $? -eq 0 ]; then
     echo " $(date +%T ) Floating IP for haproxy is create $floating_ip_haproxy"
-    sed -i "s/^floatingIp=.*/floatingIp=$floating_ip_haproxy/" dcollect.sh
 else
     echo " $(date +%T ) Fail to create haproxy floating IP"
     exit 1
@@ -379,7 +378,11 @@ chmod 600 ${sshkey}.pem > /dev/null 2>&1
 
 rm -rf roles/ansible/files/*.zip > /dev/null 2>&1
 
-zip -r roles/ansible/files/NSO_A2.zip ../NSO_A2 > /dev/null 2>&1
+cd ..
+
+zip -r NSO_A2/roles/ansible/files/NSO_A2.zip  NSO_A2 > /dev/null 2>&1
+
+cd NSO_A2
 
 cp openrc_file  roles/keepalived/files > /dev/null 2>&1
 

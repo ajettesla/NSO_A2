@@ -117,7 +117,7 @@ while true; do
             addresses=$(echo "$value" | jq -r '.addresses | to_entries[] | .value[0]')
             tags=$(echo "$value" | jq -r '.tags[]' 2>/dev/null || echo "")
 
-            sleep 1
+            sleep 2
             # Check for 'dev', 'proxy', or 'bastion' tags and write to appropriate section
             if [[ "$tags" == *"dev"* ]]; then
                 if [[ -n "$addresses" ]]; then

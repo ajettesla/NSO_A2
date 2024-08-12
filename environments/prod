@@ -1,12 +1,14 @@
 [local]
 localhost ansible_connection=local
 [dev]
-dev_1 ansible_host=10.1.2.130 ansible_ssh_private_key_file=key1.pem
+dev_3 ansible_host=10.1.2.195 ansible_ssh_private_key_file=key1.pem
+dev_2 ansible_host=10.1.2.114 ansible_ssh_private_key_file=key1.pem
+dev_1 ansible_host=10.1.2.90 ansible_ssh_private_key_file=key1.pem
 [proxy]
-proxy_2 ansible_host=10.1.1.218 ansible_ssh_private_key_file=key1.pem
-proxy_1 ansible_host=10.1.1.194 ansible_ssh_private_key_file=key1.pem
+proxy_2 ansible_host=10.1.1.71 ansible_ssh_private_key_file=key1.pem
+proxy_1 ansible_host=10.1.1.131 ansible_ssh_private_key_file=key1.pem
 [bastion]
-Bastion ansible_host=185.52.156.85 ansible_ssh_private_key_file=key1.pem
+Bastion ansible_host=89.46.80.239 ansible_ssh_private_key_file=key1.pem
 
 
 [all:children]
