@@ -1,0 +1,8 @@
+- name: install ngnix
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - nginx
+    - nginx-full
+    - nginx-extras
