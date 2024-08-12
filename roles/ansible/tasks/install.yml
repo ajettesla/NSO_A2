@@ -12,10 +12,10 @@
     path: /opt/NSO_A2.zip
     state: absent
 
-- name: Remove NSO_final_project directory in bastion
+- name: Remove NSO_A2 directory in bastion
   file:
     path: /opt/NSO_A2
-    state: directory
+    state: absent
     recurse: yes
   ignore_errors: yes
 
@@ -34,6 +34,7 @@
     src: /opt/NSO_A2.zip
     dest: /opt/
     remote_src: yes
+    extra_opts: ['-j']
 
 
 - name: Print bastion and proxy IP addresses
