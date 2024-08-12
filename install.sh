@@ -337,13 +337,6 @@ done
 rm -f "$dev_file" "$proxy_file" "$bastion_file"
 
 # Append device details to inventory file
-rm -rf NSO_final_project
-
-git clone https://github.com/ajettesla/NSO_final_project.git > /dev/null
-
-echo "repository was cloned"
-
-cp ${sshkey}.pem NSO_final_project/
 
 rm -rf NSO_final_project/environments/prod
 
@@ -361,11 +354,12 @@ rm -f "$dev_file" "$proxy_file"
 
 echo " $(date +%T) Inventory file generated: $inventory_file"
 
-cp "$inventory_file" NSO_final_project/environments/prod
+cp "$inventory_file" environments/prod
 
-mkdir -p NSO_final_project/group_vars
+rm -rf $inventory_file
 
-cat <<EOF > NSO_final_project/group_vars/all.yml
+
+cat <<EOF > group_vars/all.yml
 
 floatingIp:
   bastion: $floating_ip_bastion
@@ -381,21 +375,16 @@ prometheus:
 
 EOF
 
-chmod 600 NSO_final_project/${sshkey}.pem > /dev/null 2>&1
+chmod 600 ${sshkey}.pem > /dev/null 2>&1
 
-rm -rf NSO_final_project/roles/ansible/files/NSO_final_project.zip > /dev/null 2>&1
+rm -rf roles/ansible/files/*.zip > /dev/null 2>&1
 
-zip -r NSO_final_project/roles/ansible/files/NSO_final_project.zip NSO_final_project > /dev/null 2>&1
+zip -r roles/ansible/files/NSO_A2.zip ../NSO_A2 > /dev/null 2>&1
 
-mkdir NSO_final_project/roles/keepalived/files > /dev/null 2>&1
-
-cp openrc_file  NSO_final_project/roles/keepalived/files > /dev/null 2>&1
-
-cd  NSO_final_project
+cp openrc_file  roles/keepalived/files > /dev/null 2>&1
 
 ssh-keygen -f "/root/.ssh/known_hosts" -R "bastion" > /dev/null 2>&1
 
 ssh-keygen -f "/root/.ssh/known_hosts" -R "haproxy" > /dev/null 2>&1
-
 
 ansible-playbook app.yml

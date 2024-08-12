@@ -7,14 +7,14 @@
   - zip
   - unzip
 
-- name: Remove NSO_final_project.zip in bastion
+- name: Remove NSO_A2.zip in bastion
   file:
-    path: /opt/NSO_final_project.zip
+    path: /opt/NSO_A2.zip
     state: absent
 
 - name: Remove NSO_final_project directory in bastion
   file:
-    path: /opt/NSO_final_project
+    path: /opt/NSO_A2
     state: directory
     recurse: yes
   ignore_errors: yes
@@ -22,7 +22,7 @@
 
 - name: Copy Ansible folder to bastion
   copy:
-    src: NSO_final_project.zip
+    src: NSO_A2.zip
     dest: /opt/
     owner: root
     group: root
@@ -31,7 +31,7 @@
 
 - name: Unzip the archive
   unarchive:
-    src: /opt/NSO_final_project.zip
+    src: /opt/NSO_A2.zip
     dest: /opt/
     remote_src: yes
 
