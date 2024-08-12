@@ -3,16 +3,22 @@
   hosts: dev
   become: true
   roles: 
-    
+    - flask
+    - snmpd
+    - prometheus_node
 
 - name: loadbalancer
   hosts: proxy
   become: true
   roles:
-  
+    - haproxy
+    - keepalived
+    - ngnix
+    - prometheus_node
      
 - name: self
   hosts: local
   become: true
   roles: 
-  
+    - prometheus_controller
+    - grafana

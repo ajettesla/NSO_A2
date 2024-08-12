@@ -2,3 +2,5 @@
   hosts: bastion
   become: true
   roles:
+  - ansible
+  - python3
