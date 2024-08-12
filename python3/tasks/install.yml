@@ -1,0 +1,6 @@
+- name: Install Ansible
+  apt:
+    name: python3
+    state: present
+    update_cache: true
+
