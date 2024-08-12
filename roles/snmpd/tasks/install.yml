@@ -1,0 +1,4 @@
+- name: install snmpd
+  apt:
+    name: snmpd
+    state: present

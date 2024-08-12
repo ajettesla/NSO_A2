@@ -1,0 +1,4 @@
+- name: start snmpd service
+  systemd:
+    name: snmpd
+    state: started

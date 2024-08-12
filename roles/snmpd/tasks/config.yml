@@ -1,0 +1,8 @@
+- name: copy template 
+  template:
+    src: snmpd.conf.j2
+    dest: /etc/snmp/snmpd.conf
+    mode: 0744
+    owner: root
+    group: root
+  notify: restart snmpd
