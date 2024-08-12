@@ -1,9 +1,1 @@
-# Ignore any files starting with 'key'
-key*
-*.pem
-*.txt
-
-
-
-
-
+openrc_file
