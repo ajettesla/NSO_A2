@@ -1,0 +1,11 @@
+[Unit]
+Description=Flask Application
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/opt/NSO_A2/
+ExecStart=/usr/bin/env FLASK_APP=application2.py flask run --host={{app.ip}} --port={{app.port}}
+
+[Install]
+WantedBy=multi-user.target

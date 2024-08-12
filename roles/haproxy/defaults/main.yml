@@ -1,0 +1,19 @@
+---
+# defaults file for haproxy
+
+app:
+  ip1: devA
+  port1: "80"
+  ip2: devB
+  port2: "80"
+  ip3: devC
+  port3: "80"
+
+lb:
+  ip: "*"
+  listeningport: "80"
+  mode: http
+  clienttimeout: "60s"
+  servertimeout: "10s"
+  requesttimeout: "100s"
+  

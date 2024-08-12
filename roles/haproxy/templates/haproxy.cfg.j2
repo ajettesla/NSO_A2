@@ -1,0 +1,17 @@
+frontend httpsandhttp
+   bind {{ lb.ip }}:{{ lb.listeningport }}
+   timeout client {{ lb.clienttimeout }}
+   mode {{ lb.mode }}
+   default_backend allservers
+   
+   
+backend allservers
+   timeout connect {{ lb.servertimeout }}
+   timeout server {{ lb.requesttimeout }}
+   mode {{ lb.mode }}
+
+   
+{% for host in groups['dev'] %}
+server {{ host }} {{ hostvars[host].ansible_default_ipv4.address }}:{{ app.port1 }}
+{% endfor %}
+

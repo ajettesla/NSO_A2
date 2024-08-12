@@ -1,0 +1,45 @@
+- name: Install Ansible and required packages
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+  - ansible
+  - zip
+  - unzip
+
+- name: Remove NSO_final_project.zip in bastion
+  file:
+    path: /opt/NSO_final_project.zip
+    state: absent
+
+- name: Remove NSO_final_project directory in bastion
+  file:
+    path: /opt/NSO_final_project
+    state: directory
+    recurse: yes
+  ignore_errors: yes
+
+
+- name: Copy Ansible folder to bastion
+  copy:
+    src: NSO_final_project.zip
+    dest: /opt/
+    owner: root
+    group: root
+    mode: '0755'
+
+
+- name: Unzip the archive
+  unarchive:
+    src: /opt/NSO_final_project.zip
+    dest: /opt/
+    remote_src: yes
+
+
+- name: Print bastion and proxy IP addresses
+  debug:
+    msg:
+    - "hallo"
+
+
+

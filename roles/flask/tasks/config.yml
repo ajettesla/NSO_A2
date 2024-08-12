@@ -1,0 +1,15 @@
+---
+ - name: configuring the flask app
+   template:
+     src: flask.service.j2
+     dest: /etc/systemd/system/flask.service
+     mode: 0755
+   notify:
+     - Reload systemd
+
+ - name: Start and enable Flask application service
+   systemd:
+     name: flask
+     state: started
+     enabled: yes
+

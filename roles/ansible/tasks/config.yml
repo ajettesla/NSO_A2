@@ -1,0 +1,4 @@
+- name: apply ansible configuration
+  shell: ansible-playbook site.yaml
+  args:
+    chdir: /opt/NSO_final_project

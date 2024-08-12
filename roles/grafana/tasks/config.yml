@@ -1,0 +1,23 @@
+- name: Enable and start Grafana service
+  systemd:
+    name: grafana-server
+    enabled: yes
+    state: started
+
+- name: Create provisioning directory
+  file:
+    path: /etc/grafana/provisioning/datasources
+    state: directory
+    owner: root
+    group: root
+
+# Upload Prometheus datasource configuration
+- name: Upload Prometheus datasource config to Grafana
+  template:
+    src: prometheus-datasource.yml.j2
+    dest: /etc/grafana/provisioning/datasources/prometheus-datasource.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+  - Restart Grafana
