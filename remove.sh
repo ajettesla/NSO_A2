@@ -1,3 +1,4 @@
+#!/bin/bash
 openrc_file=$1
 tag=$2
 sshkey=$3
