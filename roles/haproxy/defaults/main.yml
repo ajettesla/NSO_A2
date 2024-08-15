@@ -3,15 +3,15 @@
 
 app:
   ip1: devA
-  port1: "80"
+  port1: "5000"
   ip2: devB
-  port2: "80"
+  port2: "5000"
   ip3: devC
-  port3: "80"
+  port3: "5000"
 
 lb:
   ip: "*"
-  listeningport: "80"
+  listeningport: "5000"
   mode: http
   clienttimeout: "60s"
   servertimeout: "10s"
