@@ -32,10 +32,23 @@
     dest: /opt/
     remote_src: yes
 
-- name: Print bastion and proxy IP addresses
-  debug:
-    msg:
-    - "hallo"
+- name: Copy SSH key
+  copy:
+    src: "{{ name.sshkey }}"
+    dest: /root/.ssh/{{ name.sshkey }}
+    mode: '0600'
+    owner: root
+    group: root
+
+
+- name: Copy SSH config file
+  copy:
+    src: config
+    dest: /root/.ssh/config
+    mode: '0600'
+    owner: root
+    group: root
+
 
 
 
