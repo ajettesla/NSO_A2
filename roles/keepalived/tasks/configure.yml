@@ -5,7 +5,7 @@
     mode: '0644'
     owner: root
     group: root
-  when: inventory_hostname == 'proxy_1'
+  when: inventory_hostname == 'proxy_2' + name.tag
   notify: Restart Keepalived Service
 
 - name: Copy template Keepalived configuration for proxy_2
@@ -15,7 +15,7 @@
     mode: '0644'
     owner: root
     group: root
-  when: inventory_hostname == 'proxy_2'
+  when: inventory_hostname == 'proxy_2' + name.tag
   notify: Restart Keepalived Service
 
 - name: Copy template Keepalived configuration for proxy_2
