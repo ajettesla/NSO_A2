@@ -34,6 +34,7 @@ else
     exit 1
 fi
 
+
 while true; do
     echo -e "$(date +%T)\nDo you need to create a keypair? Press (a)\nIs there an existing public key? Press (b) location of key ~/.ssh/${sshkey}.pub is uploaded to the cloud"
     read -p "Please enter your choice: " choice
@@ -47,12 +48,18 @@ while true; do
                 echo "Creating and downloading the keypair with name ${sshkey}${tag}."
                 openstack keypair create ${sshkey}${tag} > ~/.ssh/${sshkey}
                 cp ~/.ssh/${sshkey} roles/ansible/files/
-                chmod 600 ~/.ssh/${sshkey}
+                chmod 0600 ~/.ssh/${sshkey}
                 echo "Private key downloaded to ~/.ssh/${sshkey}."
             fi
             break
             ;;
         [bB])
+            openstack keypair list | grep ${sshkey}${tag} > /dev/null 
+            if [[ $? -eq 0 ]]; then
+                echo "key already exist in cloud"
+                openstack kepair delete ${sshkey}${tag} > /dev/null
+                echo "remove key pair let's upload key in our local machine ..."
+            fi 
             echo "Checking if keypair exists locally..."
             if [[ -f ~/.ssh/${sshkey} && -f ~/.ssh/${sshkey}.pub ]]; then 
                 echo "Key pair exists locally. Uploading this public key to OpenStack..."
@@ -181,11 +188,11 @@ else
 fi
 
 openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 22 --protocol tcp --ingress external_security_group${tag} >/dev/null
-openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 80 --protocol tcp --ingress external_security_group${tag} >/dev/null
+openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 5000 --protocol tcp --ingress external_security_group${tag} >/dev/null
 openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 9090 --protocol tcp --ingress external_security_group${tag} >/dev/null
 openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 3000 --protocol tcp --ingress external_security_group${tag} >/dev/null
 openstack security group rule create --remote-ip 10.1.0.0/16 --protocol any --ingress external_security_group${tag} > /dev/null
-openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 161 --protocol udp --ingress external_security_group${tag} >/dev/null
+openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 6000 --protocol udp --ingress external_security_group${tag} >/dev/null
 openstack security group rule create --remote-ip 0.0.0.0/0 --protocol icmp --ingress external_security_group${tag} >/dev/null
 
 
