@@ -8,7 +8,7 @@ FLOATING_IP="{{ floatingIp.haproxy }}"  # Ensure this is interpolated correctly
 tag="{{ name.tag }}"
 
 # Determine the hostname and set the IDs
-if [[ "$(hostname -f)" == "proxy-1" ]]; then
+if [[ "$(hostname -f)" == "proxy-1${tag}" ]]; then
     ID=proxy_1${tag}
     AID=proxy_2${tag}
 else
