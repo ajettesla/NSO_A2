@@ -1,12 +1,10 @@
 [local]
 localhost ansible_connection=local
 [dev]
-dev_3test ansible_host=10.1.2.186 ansible_ssh_private_key_file=~/.ssh/key1
-dev_2test ansible_host=10.1.2.193 ansible_ssh_private_key_file=~/.ssh/key1
-dev_1test ansible_host=10.1.2.104 ansible_ssh_private_key_file=~/.ssh/key1
+dev_1test ansible_host=10.1.2.15 ansible_ssh_private_key_file=~/.ssh/key1
 [proxy]
-proxy_2test ansible_host=10.1.1.103 ansible_ssh_private_key_file=~/.ssh/key1
-proxy_1test ansible_host=10.1.1.70 ansible_ssh_private_key_file=~/.ssh/key1
+proxy_2test ansible_host=10.1.1.202 ansible_ssh_private_key_file=~/.ssh/key1
+proxy_1test ansible_host=10.1.1.147 ansible_ssh_private_key_file=~/.ssh/key1
 [bastion]
 bastiontest ansible_host=185.52.156.199 ansible_ssh_private_key_file=~/.ssh/key1
 

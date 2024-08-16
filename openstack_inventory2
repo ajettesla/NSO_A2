@@ -1,10 +1,8 @@
 [local]
 localhost ansible_connection=local
 [dev]
-dev_3test
 [proxy]
 [bastion]
-dev_2test
 dev_1test
 proxy_2test
 proxy_1test
