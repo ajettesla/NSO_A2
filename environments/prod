@@ -1,6 +1,9 @@
 [local]
 localhost ansible_connection=local
 [dev]
+dev_4test ansible_host=10.1.2.129 ansible_ssh_private_key_file=~/.ssh/key1
+dev_3test ansible_host=10.1.2.228 ansible_ssh_private_key_file=~/.ssh/key1
+dev_2test ansible_host=10.1.2.170 ansible_ssh_private_key_file=~/.ssh/key1
 dev_1test ansible_host=10.1.2.15 ansible_ssh_private_key_file=~/.ssh/key1
 [proxy]
 proxy_2test ansible_host=10.1.1.202 ansible_ssh_private_key_file=~/.ssh/key1

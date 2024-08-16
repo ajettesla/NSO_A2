@@ -504,7 +504,7 @@ floatingIp:
   haproxy: $floating_ip_haproxy
 
 name:
-    sshkey: $sshkey
+    key: $sshkey
     tag: $tag
 
 prometheus:
@@ -530,9 +530,13 @@ cd NSO_A2
 
 cp openrc_file  roles/keepalived/files > /dev/null 2>&1
 
-ssh-keygen -f "/root/.ssh/known_hosts" -R "bastion" > /dev/null 2>&1
+ssh-keygen -f "~/.ssh/known_hosts" -R "bastion" > /dev/null 2>&1
 
-ssh-keygen -f "/root/.ssh/known_hosts" -R "haproxy" > /dev/null 2>&1
+ssh-keygen -f "~/.ssh/known_hosts" -R $floating_ip_bastion > /dev/null 2>&1
+
+ssh-keygen -f "~/.ssh/known_hosts" -R $floating_ip_haproxy > /dev/null 2>&1
+
+ssh-keygen -f "~/.ssh/known_hosts" -R "proxy" > /dev/null 2>&1
 
 cp $sshc_bastion roles/ansible/files/config
 
