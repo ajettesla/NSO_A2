@@ -78,7 +78,7 @@ while true; do
         check=$(($number - $nofsr))
 
         for x in $(seq 1 "$check"); do
-            openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private --key-name $sshkey${tag} --security-group internal_security_group -f json --tag "${tag}dev" dev_"$(($nofsr + $x))"${tag} 1>/dev/null
+            openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name $sshkey${tag} --security-group internal_security_group${tag} -f json --tag "${tag}dev" dev_"$(($nofsr + $x))"${tag} 1>/dev/null
             if [ $? -eq 0 ]; then
                 echo " $(date +%T) dev_$(($nofsr + $x)) is created"
                 changes_made=true
