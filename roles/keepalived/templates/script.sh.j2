@@ -5,14 +5,15 @@ source /opt/openrc_file
 
 # Define the floating IP
 FLOATING_IP="{{ floatingIp.haproxy }}"  # Ensure this is interpolated correctly
+tag="{{ name.tag }}"
 
 # Determine the hostname and set the IDs
 if [[ "$(hostname -f)" == "proxy-1" ]]; then
-    ID="proxy_1"
-    AID="proxy_2"
+    ID=proxy_1${tag}
+    AID=proxy_2${tag}
 else
-    ID="proxy_2"
-    AID="proxy_1"
+    ID=proxy_2${tag}
+    AID=proxy_1${tag}
 fi
 
 ip addr show | grep -q $FLOATING_IP

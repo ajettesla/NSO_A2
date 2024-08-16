@@ -41,6 +41,15 @@
     group: root
 
 
+- name: Copy ansible.cfg file
+  copy:
+    src: ansible.cfg
+    dest: /opt/NSO_A2/ansible.cfg
+    mode: '0600'
+    owner: root
+    group: root
+
+
 - name: Copy SSH config file
   copy:
     src: config

@@ -1,7 +1,7 @@
 
 floatingIp:
-  bastion: 185.52.156.8
-  haproxy: 185.52.156.182
+  bastion: 185.52.156.199
+  haproxy: 185.52.156.250
 
 name:
     sshkey: key1
