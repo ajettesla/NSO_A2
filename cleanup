@@ -10,12 +10,12 @@ read -r response
 if [[ "$response" == "y" || "$response" == "Y" ]]; then
     # Assuming you have variables sshkey and tag defined earlier in your script
     if openstack keypair delete "${sshkey}${tag}" 2>&1 > /dev/null; then
-        echo "Key pair ${sshkey}${tag} deleted successfully."
+        echo " $(date +%T) Key pair ${sshkey}${tag} deleted successfully."
     else
-        echo "Failed to delete key pair ${sshkey}${tag}. Please check the key pair name and try again."
+        echo "$(date +%T) Failed to delete key pair ${sshkey}${tag}. Please check the key pair name and try again."
     fi
 else
-    echo "Key pair deletion aborted."
+    echo " $(date +%T) Key pair deletion aborted."
 fi
 
 echo -n "Specify if you want to delete key pair in local machine (y/n): "
@@ -24,12 +24,12 @@ read -r response
 if [[ "$response" == "y" || "$response" == "Y" ]]; then
     if [[ -f ~/.ssh/${sshkey} || -f ~/.ssh/${sshkey}.pub ]]; then
         rm -f ~/.ssh/${sshkey} ~/.ssh/${sshkey}.pub
-        echo "Key pair ${sshkey} deleted successfully."
+        echo " $(date +%T) Key pair ${sshkey} deleted successfully."
     else
-        echo "Key pair does not exist."
+        echo " $(date +%T) Key pair does not exist."
     fi
 else
-    echo "Key pair deletion aborted."
+    echo " $(date +%T) Key pair deletion aborted."
 fi
 
 if [ $? -eq 0 ]; then

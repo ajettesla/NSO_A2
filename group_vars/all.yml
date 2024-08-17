@@ -1,19 +1,19 @@
 
 floatingIp:
-  bastion: 185.52.156.85
-  haproxy: 185.52.156.168
+  bastion: 185.52.156.61
+  haproxy: 185.52.156.78
 
 name:
-  key: key1
-  tag: test
+    key: key1
+    tag: test
 
 prometheus:
-  version: 2.54.0-rc.1
-  install_dir: "/opt/prometheus"
-  data_dir: "/var/lib/prometheus"
-  config_dir: "/etc/prometheus"
-  prometheus_binary_url: "https://github.com/prometheus/prometheus/releases/download/v2.54.0-rc.1/prometheus-2.54.0-rc.1.linux-amd64.tar.gz"
-  node_exporter_binary_url: "https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz"
+    version: 2.54.0-rc.1
+    install_dir: "/opt/prometheus"
+    data_dir: "/var/lib/prometheus"
+    config_dir: "/etc/prometheus"
+    prometheus_binary_url: "https://github.com/prometheus/prometheus/releases/download/v2.54.0-rc.1/prometheus-2.54.0-rc.1.linux-amd64.tar.gz"
+    node_exporter_binary_url: "https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz"
 
 grafana:
   admin_user: admin
@@ -22,3 +22,4 @@ grafana:
   grafana_url: "http://localhost:3000"
   dashboard_overwrite: true
   folder: "Node Exporter Dashboards"
+

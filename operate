@@ -70,7 +70,7 @@ while true; do
                 echo " $(date +%T) Server $server_id ($(openstack server show $server_id -f json | jq -r '.name')) deleted"
                 changes_made=true
             else   
-                echo "$(date +%T) Failed to delete server $server_id ($(openstack server show $server_id -f json | jq -r '.name')) "
+                echo " $(date +%T) Failed to delete server $server_id ($(openstack server show $server_id -f json | jq -r '.name')) "
                 openstack server show "$server_id"
                 openstack server list --tags "${tag}dev" -f csv
                 exit 1

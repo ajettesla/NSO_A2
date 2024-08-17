@@ -13,7 +13,7 @@ fi
 
 # Check if the OpenRC file exists
 if [ ! -f "$openrc_file" ]; then
-    echo " $(date +%T ) Error: OpenRC file '$openrc_file' not found."
+    echo " $(date +%T) Error: OpenRC file '$openrc_file' not found."
     exit 1
 fi
 
@@ -28,9 +28,9 @@ sshc_bastion="config"
 openstack flavor list > /dev/null 2>&1;
 
 if [ $? -eq 0 ]; then
-    echo " $(date +%T ) Connected to OpenStack cloud."
+    echo " $(date +%T) Connected to OpenStack cloud."
 else
-    echo " $(date +%T ) Failed to connect to OpenStack cloud."
+    echo " $(date +%T) Failed to connect to OpenStack cloud."
     exit 1
 fi
 
@@ -41,33 +41,33 @@ get_fingerprint() {
 }
 
 # Check if the keypair exists in OpenStack
-echo "Checking if keypair exists in OpenStack..."
+echo " $(date +%T) Checking if keypair exists in OpenStack..."
 cloud_key_fingerprint=$(openstack keypair show ${sshkey}${tag} -f value -c fingerprint 2>/dev/null)
 
 if [[ -z $cloud_key_fingerprint ]]; then
-    echo "Keypair does not exist in the cloud. Proceeding to upload local key."
+    echo " $(date +%T) Keypair does not exist in the cloud. Proceeding to upload local key."
 else
-    echo "Cloud keypair fingerprint: $cloud_key_fingerprint"
+    echo " $(date +%T) Cloud keypair fingerprint: $cloud_key_fingerprint"
 fi
 
 # Check if the keypair exists locally
-echo "Checking if keypair exists locally at ~/.ssh/${sshkey}..."
+echo " $(date +%T) Checking if keypair exists locally at ~/.ssh/${sshkey}..."
 if [[ -f ~/.ssh/${sshkey}.pub ]]; then
     local_key_fingerprint=$(get_fingerprint ~/.ssh/${sshkey}.pub)
-    echo "Local keypair fingerprint: $local_key_fingerprint"
+    echo " $(date +%T) Local keypair fingerprint: $local_key_fingerprint"
 
     if [[ "$cloud_key_fingerprint" == "$local_key_fingerprint" ]]; then
-        echo "The local and cloud keypairs are identical. No action needed."
+        echo " $(date +%T) The local and cloud keypairs are identical. No action needed."
     else
         if [[ ! -z $cloud_key_fingerprint ]]; then
-            echo "Keypair in the cloud is different from the local keypair. Deleting the cloud keypair."
+            echo " $(date +%T) Keypair in the cloud is different from the local keypair. Deleting the cloud keypair."
             openstack keypair delete ${sshkey}${tag}
         fi
 
         echo "Uploading local public key to OpenStack..."
         openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}${tag}
         if [[ $? -eq 0 ]]; then
-            echo "$(date +%T) Public key uploaded successfully."
+            echo " $(date +%T) Public key uploaded successfully."
         else   
             echo "Failed to upload the key."
             exit 1
@@ -79,9 +79,9 @@ else
     echo "Keypair generated. Uploading public key to OpenStack..."
     openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}${tag}
     if [[ $? -eq 0 ]]; then
-        echo "$(date +%T) Public key uploaded successfully."
+        echo " $(date +%T) Public key uploaded successfully."
     else   
-        echo "Failed to upload the key."
+        echo " $(date +%T) Failed to upload the key."
         exit 1
     fi
 fi

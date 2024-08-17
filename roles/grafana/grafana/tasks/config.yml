@@ -38,4 +38,5 @@
     dashboard_id: "{{ grafana.dashboard_id }}"
     overwrite: "{{ grafana.dashboard_overwrite }}"
     folder: "{{ grafana.folder }}"
+    prometheus_datasource_name: "Prometheus"
     validate_certs: false
