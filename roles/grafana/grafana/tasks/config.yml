@@ -40,3 +40,5 @@
     folder: "{{ grafana.folder }}"
     prometheus_datasource_name: "Prometheus"
     validate_certs: false
+  notify:
+  - Restart Grafana
