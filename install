@@ -171,8 +171,14 @@ cp "$inventory_file" environments/prod
 cp $inventory_file2 environments/prod2
 
 rm -rf $inventory_file
-rm -rf $inventory_file
 
+cp $sshc_bastion roles/ansible/files/config
+
+cp ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
+
+sudo chmod 0600 roles/ansible/files/config
+
+rm -rf $sshc_bastion
 }
 
 process_servers_csv() {
@@ -342,6 +348,13 @@ cp $inventory_file2 environments/prod2
 
 rm -rf $inventory_file
 rm -rf $inventory_file
+cp $sshc_bastion roles/ansible/files/config
+
+cp ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
+
+sudo chmod 0600 roles/ansible/files/config
+
+rm -rf $sshc_bastion
 }
 
 
@@ -745,13 +758,7 @@ ssh-keygen -f "~/.ssh/known_hosts" -R $floating_ip_haproxy > /dev/null 2>&1
 
 ssh-keygen -f "~/.ssh/known_hosts" -R "proxy" > /dev/null 2>&1
 
-cp $sshc_bastion roles/ansible/files/config
 
-cp ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
-
-sudo chmod 0600 roles/ansible/files/config
-
-rm -rf $sshc_bastion
 
 >ansible.cfg
 
