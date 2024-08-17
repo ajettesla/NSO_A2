@@ -1,3 +1,4 @@
 openrc_file
 roles/keepalived/files/openrc_file
 roles/ansible/files/*
+roles/ansible/files/NSO_A2.zip
