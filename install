@@ -170,11 +170,12 @@ cp "$inventory_file" environments/prod
 
 cp $inventory_file2 environments/prod2
 
-rm -rf $inventory_file
-
 cp $sshc_bastion roles/ansible/files/config
 
-cp ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
+rm -rf $inventory_file
+
+rm -rf $inventory_file2
+
 
 sudo chmod 0600 roles/ansible/files/config
 
@@ -347,10 +348,11 @@ cp "$inventory_file" environments/prod
 cp $inventory_file2 environments/prod2
 
 rm -rf $inventory_file
-rm -rf $inventory_file
-cp $sshc_bastion roles/ansible/files/config
 
-cp ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
+rm -rf $inventory_file2
+
+
+cp $sshc_bastion roles/ansible/files/config
 
 sudo chmod 0600 roles/ansible/files/config
 
@@ -449,6 +451,9 @@ else
     fi
 fi
 
+mkdir -p roles/ansible/files/ > /dev/null
+
+cp  ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
 
 
 create_public_network() {
