@@ -500,6 +500,14 @@ prometheus:
     prometheus_binary_url: "https://github.com/prometheus/prometheus/releases/download/v2.54.0-rc.1/prometheus-2.54.0-rc.1.linux-amd64.tar.gz"
     node_exporter_binary_url: "https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz"
 
+grafana:
+  admin_user: admin
+  admin_password: admin
+  dashboard_id: "11074"
+  grafana_url: "http://localhost:3000"
+  dashboard_overwrite: true
+  folder: "Node Exporter Dashboards"
+
 EOF
 
 
