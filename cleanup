@@ -48,16 +48,15 @@ for x in $(openstack floating ip list -f json | jq -r '.[]."Floating IP Address"
 done
 
 for server_id in $(openstack server list -f json | jq -r '.[].ID'); do
-    if [[ "$(openstack server show $server_id -f json | jq -r '.tags[]' 2>/dev/null)" == *"${tag}"* ]]; then
+    if [[ "$(openstack server show $server_id -f json | jq -r '.name' 2>/dev/null)" == *"${tag}"* ]]; then
         openstack server delete $server_id
-
         if [ $? -eq 0 ]; then
             echo " $(date +%T) $server_id ($(openstack server show $server_id -f json | jq -r '.name')) is deleted "
         else
             echo " $(date +%T) Failed to delete server $server_id ($(openstack server show $server_id -f json | jq -r '.name'))"
         fi
     else
-        echo " $(date +%T) Server $server_id does not have the 'ajet' tag"
+        echo " $(date +%T) Server $server_id does not have the $tag tag"
     fi
 done
 

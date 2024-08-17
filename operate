@@ -48,7 +48,7 @@ while true; do
     echo " $(date +%T) Desired number of servers: $number"
 
     # Get the current number of servers with "dev" in their name
-    nofsr=$(openstack server list -f csv | grep "dev" | wc -l)
+    nofsr=$(openstack server list -f csv | grep $tag | grep "dev" | wc -l)
     echo " $(date +%T) Number of servers running is $nofsr"
 
     # Reset the trap for Ctrl-C to ensure proper behavior during critical operations
@@ -57,12 +57,14 @@ while true; do
     # Flag to check if any changes were made
     changes_made=false
 
+
+
     if [ "$number" -lt "$nofsr" ]; then
         # Calculate how many servers need to be deleted
         check=$(($nofsr - $number))
 
         # List servers with the specific tag
-        servers_with_tag=$(openstack server list --tags "${tag}dev" -f csv | grep "dev" | cut -d "," -f1 | tr -d '"' | head -n "$check")
+        servers_with_tag=$(openstack server list -f csv |grep "$tag" | grep "dev" | cut -d "," -f1 | tr -d '"' | head -n "$check")
 
         for server_id in $servers_with_tag; do
             openstack server delete "$server_id"
@@ -72,7 +74,7 @@ while true; do
             else   
                 echo " $(date +%T) Failed to delete server $server_id ($(openstack server show $server_id -f json | jq -r '.name')) "
                 openstack server show "$server_id"
-                openstack server list --tags "${tag}dev" -f csv
+                openstack server list -f csv | grep $tag | grep dev
                 exit 1
             fi
         done
@@ -82,7 +84,7 @@ while true; do
         check=$(($number - $nofsr))
 
         for x in $(seq 1 "$check"); do
-            openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name $sshkey${tag} --security-group internal_security_group${tag} -f json --tag "${tag}dev" dev_"$(($nofsr + $x))"${tag} 1>/dev/null
+            openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name $sshkey --security-group internal_security_group${tag} -f json  dev_"$(($nofsr + $x))"${tag} 1>/dev/null
             if [ $? -eq 0 ]; then
                 echo " $(date +%T) dev_$(($nofsr + $x)) is created"
                 changes_made=true
