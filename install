@@ -42,7 +42,7 @@ get_fingerprint() {
 
 # Check if the keypair exists in OpenStack
 echo " $(date +%T) Checking if keypair exists in OpenStack..."
-cloud_key_fingerprint=$(openstack keypair show ${sshkey}${tag} -f value -c fingerprint 2>/dev/null)
+cloud_key_fingerprint=$(openstack keypair show ${sshkey} -f value -c fingerprint 2>/dev/null)
 
 if [[ -z $cloud_key_fingerprint ]]; then
     echo " $(date +%T) Keypair does not exist in the cloud. Proceeding to upload local key."
@@ -61,11 +61,11 @@ if [[ -f ~/.ssh/${sshkey}.pub ]]; then
     else
         if [[ ! -z $cloud_key_fingerprint ]]; then
             echo " $(date +%T) Keypair in the cloud is different from the local keypair. Deleting the cloud keypair."
-            openstack keypair delete ${sshkey}${tag}
+            openstack keypair delete ${sshkey}
         fi
 
         echo "Uploading local public key to OpenStack..."
-        openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}${tag}
+        openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}
         if [[ $? -eq 0 ]]; then
             echo " $(date +%T) Public key uploaded successfully."
         else   
@@ -77,7 +77,7 @@ else
     echo "Keypair does not exist locally. Generating a new SSH key pair..."
     ssh-keygen -t rsa -b 4096 -f ~/.ssh/${sshkey} -N ""
     echo "Keypair generated. Uploading public key to OpenStack..."
-    openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}${tag}
+    openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}
     if [[ $? -eq 0 ]]; then
         echo " $(date +%T) Public key uploaded successfully."
     else   
@@ -254,7 +254,7 @@ if [ -z "$image_name" ] || [ -z "$flavor_name" ] || [ -z "$sshkey" ] || [ -z "$t
     exit 1
 fi
 
-openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${sshkey}${tag} --security-group external_security_group${tag}  -f json --tag ${tag} bastion${tag} 2>&1 > /dev/null
+openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${sshkey} --security-group external_security_group${tag}  -f json --tag ${tag} bastion${tag} 2>&1 > /dev/null
 
 if [ $? -eq 0 ]; then
     echo " $(date +%T ) Bastion machine is create "
@@ -263,7 +263,7 @@ else
     exit 1
 fi
 
-openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${sshkey}${tag} --security-group external_security_group${tag}  -f json --tag ${tag} proxy_1${tag} 2>&1 > /dev/null
+openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${sshkey} --security-group external_security_group${tag}  -f json --tag ${tag} proxy_1${tag} 2>&1 > /dev/null
 
 if [ $? -eq 0 ]; then
     echo " $(date +%T ) proxy machine is create "
@@ -273,7 +273,7 @@ else
 fi
 
 
-openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${sshkey}${tag} --security-group external_security_group${tag}  -f json --tag ${tag} proxy_2${tag} 2>&1 > /dev/null
+openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${sshkey} --security-group external_security_group${tag}  -f json --tag ${tag} proxy_2${tag} 2>&1 > /dev/null
 
 if [ $? -eq 0 ]; then
     echo " $(date +%T ) proxy machine is create "
@@ -303,7 +303,7 @@ fi
 
 for x in $(seq 1 $nofn); do
 
-  openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name ${sshkey}${tag} --security-group internal_security_group${tag} -f json --tag "${tag}dev" dev_"$x"${tag}  1>/dev/null
+  openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name ${sshkey} --security-group internal_security_group${tag} -f json --tag "${tag}dev" dev_"$x"${tag}  1>/dev/null
 
   if [ $? -eq 0 ]; then
       echo " $(date +%T ) dev${x} is created "
