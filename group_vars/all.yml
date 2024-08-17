@@ -1,7 +1,7 @@
 
 floatingIp:
-  bastion: 185.52.156.223
-  haproxy: 185.52.156.182
+  bastion: 185.52.156.20
+  haproxy: 185.52.156.119
 
 name:
     key: key1

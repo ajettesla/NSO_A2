@@ -1,5 +1,3 @@
-#!/bin/bash
-
 process_servers_json() {
     # Define temporary files
     dev_file="dev_inventory.tmp"
@@ -39,27 +37,27 @@ while IFS= read -r server; do
 
     if [[ "$power_state" != "1" ]]; then 
         all_active=false
-        echo  " $(date +%T) $name is shutdown"
+        echo  " $date +%T$name is shutdown"
         break
     fi
 done < <(echo "$servers_json" | jq -c '.[]')
 
 
 if [ "$all_active" = false ]; then
-    echo  " $(date +%T) Some servers are not in ACTIVE state. Waiting for up to 60 seconds for them to become active..."
+    echo  " $date +%TSome servers are not in ACTIVE state. Waiting for up to 60 seconds for them to become active..."
 
     while : ; do
         current_time=$(date +%s)
         elapsed_time=$((current_time - start_time))
 
         if [ "$elapsed_time" -ge 60 ]; then
-            echo  " $(date +%T) Waited 60 seconds. Some servers are still not active:"
+            echo  " $date +%TWaited 60 seconds. Some servers are still not active:"
             echo "$servers_json" | jq -c '.[]' | while IFS= read -r server; do
                 name=$(echo "$server" | jq -r '.Name')
                 power_state=$(echo "$server" | jq -r '."Power State"')
 
                 if [[ "$power_state" != "1" ]]; then 
-                    echo  " $(date +%T) $name is in SHUTDOWN STATE"
+                    echo  " $date +%T$name is in SHUTDOWN STATE"
                 fi
             done
             break
@@ -79,14 +77,14 @@ if [ "$all_active" = false ]; then
         done < <(echo "$servers_json" | jq -c '.[]')
 
         if [ "$all_active" = true ]; then
-            echo  " $(date +%T) All servers are now in ACTIVE state."
+            echo  " $date +%TAll servers are now in ACTIVE state."
             break
         fi
 
         sleep 5  # wait before re-checking
     done
 else
-    echo  " $(date +%T) All servers are already in ACTIVE state. Proceeding with the script..."
+    echo  " $date +%TAll servers are already in ACTIVE state. Proceeding with the script..."
 fi
 
 
@@ -97,24 +95,22 @@ fi
         networks=$(echo "$server" | jq -r '.Networks | to_entries[].value[]')
 
         # Extract public IP
-        private_IP=$(echo "$networks" | head -n 1 | grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
-       
+        public_IP=$(echo "$networks" | grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
 
-        if [ -n "$private_IP" ]; then
-            echo -e "Host $name \n\t Hostname $private_IP \n\t User ubuntu \n\t IdentityFile ~/.ssh/$sshkey" >> $sshc_bastion
+        if [ -n "$public_IP" ]; then
+            echo -e "Host $name \n\t Hostname $public_IP \n\t User ubuntu \n\t IdentityFile ~/.ssh/$sshkey" >> $sshc_bastion
             if [[ "$name" == *"dev"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$dev_file"
+                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$dev_file"
                 echo "$name" >> $bastion_test_file
             elif [[ "$name" == *"proxy"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$proxy_file"
+                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$proxy_file"
                 echo "$name" >> $bastion_test_file
             elif [[ "$name" == *"bastion"* && "$name" == *"$tag"* ]]; then
-                public_IP=$(echo "$server" | jq -r '.Networks | to_entries[].value[1]' | head -n 1)
                 echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$bastion_file"
                 echo "$name" >> $bastion_test_file
             fi
         else 
-            echo " $(date +%T) Something went wrong with getting the IP address for $name."
+            echo "$(date +%T) Something went wrong with getting the IP address for $name."
         fi
     done
 
@@ -163,16 +159,6 @@ fi
         echo "dev"
         echo "bastion"
     } >> "$inventory_file2"
-
-echo " $(date +%T) Inventory file generated: $inventory_file"
-
-cp "$inventory_file" environments/prod
-
-cp $inventory_file2 environments/prod2
-
-rm -rf $inventory_file
-rm -rf $inventory_file
-
 }
 
 process_servers_csv() {
@@ -219,20 +205,20 @@ process_servers_csv() {
  
 
     if [ "$all_active" = false ]; then
-        echo  " $(date +%T) Some servers are not in ACTIVE state. Waiting for up to 60 seconds for them to become active..."
+        echo  " $date +%TSome servers are not in ACTIVE state. Waiting for up to 60 seconds for them to become active..."
         
         while : ; do
             current_time=$(date +%s)
             elapsed_time=$((current_time - start_time))
 
             if [ "$elapsed_time" -ge 60 ]; then
-                echo  " $(date +%T) Waited 60 seconds. Some servers are still not active:"
+                echo  " $date +%TWaited 60 seconds. Some servers are still not active:"
                 openstack server list -f csv --long | tail -n +2 | while IFS=, read -r server; do
                     name=$(echo $server | cut -d "," -f 2 | tr -d '"')
                     power_state=$(echo $server | cut -d "," -f 5 | tr -d '"')
 
                     if [[ "$power_state" -ne 1 ]]; then 
-                        echo  " $(date +%T) $name is in SHUTDOWN STATE"
+                        echo  " $date +%T$name is in SHUTDOWN STATE"
                     fi
                 done
                 break
@@ -251,14 +237,14 @@ process_servers_csv() {
             done < <(openstack server list -f csv --long | tail -n +2)
 
             if [ "$all_active" = true ]; then
-                echo  " $(date +%T) All servers are now in ACTIVE state."
+                echo  " $date +%TAll servers are now in ACTIVE state."
                 break
             fi
 
             sleep 5  # wait before re-checking
         done
     else
-        echo  " $(date +%T) All servers are already in ACTIVE state. Proceeding with the script..."
+        echo  " $date +%TAll servers are already in ACTIVE state. Proceeding with the script..."
     fi
 
     # Now continue with the rest of the script (processing servers for inventory creation)
@@ -314,175 +300,4 @@ process_servers_csv() {
 
     # Clean up temporary files
     rm -f "$dev_file" "$proxy_file" "$bastion_file" "$dev_test_file" "$proxy_test_file" "$bastion_test_file"
-
-        # Append groupings
-    {
-        echo -e "\n"
-        echo "[all:children]"
-        echo -e "\n"
-        echo "proxy"
-        echo "dev"
-        echo "bastion"
-    } >> "$inventory_file"
-
-    {
-        echo -e "\n"
-        echo "[all:children]"
-        echo -e "\n"
-        echo "proxy"
-        echo "dev"
-        echo "bastion"
-    } >> "$inventory_file2"
-
-echo " $(date +%T) Inventory file generated: $inventory_file"
-
-cp "$inventory_file" environments/prod
-
-cp $inventory_file2 environments/prod2
-
-rm -rf $inventory_file
-rm -rf $inventory_file
 }
-
-# Ensure the script receives exactly three arguments
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <openrc_file> <tag> <sshkey>"
-    exit 1
-fi
-
-# Assign arguments to variables
-openrc_file=$1
-tag=$2
-sshkey=$3
-
-# Source the OpenRC file to set environment variables
-source "$openrc_file"
-
-# Path to the configuration file
-config_file="server.conf"
-
-sshc_my="~/.ssh/config/"
-
-sshc_bastion="config"
-
-# Ensure the configuration file exists
-if [ ! -f "$config_file" ]; then
-    echo " $(date +%T) Configuration file not found!"
-    exit 1
-fi
-
-# Signal handlers
-trap 'echo " $(date +%T) Ctrl-C pressed. Exiting after sleep."; exit 0' SIGINT
-trap 'echo " $(date +%T) Ctrl-X pressed. Exiting immediately."; exit 0' SIGTSTP
-
-while true; do
-    # Read the number from the configuration file
-    number=$(cat "$config_file")
-
-    # Check if the variable is empty
-    if [ -z "$number" ]; then
-        echo " $(date +%T) No number found in configuration file!"
-        exit 1
-    fi
-
-    export image_name='Ubuntu 22.04 Jammy Jellyfish x86_64'
-    export flavor_name='m1.small'
-
-    # Print the value to verify
-    echo " $(date +%T) Desired number of servers: $number"
-
-    # Get the current number of servers with "dev" in their name
-    nofsr=$(openstack server list -f csv | grep $tag | grep "dev" | wc -l)
-    echo " $(date +%T) Number of servers running is $nofsr"
-
-    # Reset the trap for Ctrl-C to ensure proper behavior during critical operations
-    trap 'echo " $(date +%T) Ctrl-C pressed. Waiting for settings to be applied before exiting."' SIGINT
-
-    # Flag to check if any changes were made
-    changes_made=false
-
-
-
-    if [ "$number" -lt "$nofsr" ]; then
-        # Calculate how many servers need to be deleted
-        check=$(($nofsr - $number))
-
-        # List servers with the specific tag
-        servers_with_tag=$(openstack server list -f csv |grep "$tag" | grep "dev" | cut -d "," -f1 | tr -d '"' | head -n "$check")
-
-        for server_id in $servers_with_tag; do
-            openstack server delete "$server_id"
-            if [ $? -eq 0 ]; then
-                echo " $(date +%T) Server $server_id ($(openstack server show $server_id -f json | jq -r '.name')) deleted"
-                changes_made=true
-            else   
-                echo " $(date +%T) Failed to delete server $server_id ($(openstack server show $server_id -f json | jq -r '.name')) "
-                openstack server show "$server_id"
-                openstack server list -f csv | grep $tag | grep dev
-                exit 1
-            fi
-        done
-
-    elif [ "$number" -gt "$nofsr" ]; then
-        # Calculate how many more servers need to be created
-        check=$(($number - $nofsr))
-
-        for x in $(seq 1 "$check"); do
-            openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name $sshkey --security-group internal_security_group${tag} -f json  dev_"$(($nofsr + $x))"${tag} 1>/dev/null
-            if [ $? -eq 0 ]; then
-                echo " $(date +%T) dev_$(($nofsr + $x)) is created"
-                changes_made=true
-            else   
-                echo " $(date +%T) Failed to create dev_$(($nofsr + $x))"
-                exit 1
-            fi
-        done
-    else
-        echo " $(date +%T) Number of servers running and required servers are equal ($number)."
-    fi
-
-    # Apply changes only if servers were created or deleted
-    if [ "$changes_made" = true ]; then
-        # Define filenames
-        # Temporary files for storing device names
-        process_servers_json
-
- if [[ $? -ne 0 ]]; then
-    echo " $(date +%T) some thing wrong with JSON formate let's solve this by CSV"
-    process_servers_csv
-fi
-
-        sudo chmod 600 "${sshkey}.pem" > /dev/null 2>&1
-
-        rm -rf roles/ansible/files/*.zip > /dev/null 2>&1
-
-        cd ..
-
-        zip -r NSO_A2/roles/ansible/files/NSO_A2.zip NSO_A2 > /dev/null 2>&1
-        
-        cd NSO_A2/
-        
-        cp $sshc_bastion roles/ansible/files/config
-
-cp ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
-
-chmod 0600 roles/ansible/files/config
-
-rm -rf $sshc_bastion
-
-
-
-sleep 5
-echo " $(date +%T) wait for 5 sec before applying configurations"
-ansible-playbook app.yml
-        
-    else
-        echo " $(date +%T) No changes were made, skipping inventory update and Ansible playbook execution."
-    fi
-
-    # Restore trap for Ctrl-C during sleep
-    trap 'echo " $(date +%T) Ctrl-C pressed. Exiting after sleep."; exit 0' SIGINT
-
-    # Sleep for 30 seconds before checking again
-    sleep 30
-done
