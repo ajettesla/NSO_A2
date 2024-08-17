@@ -35,71 +35,56 @@ else
 fi
 
 
-while true; do
-    echo -e "$(date +%T)\nDo you need to create a keypair? Press (a)\nIs there an existing public key? Press (b) location of key ~/.ssh/${sshkey}.pub is uploaded to the cloud"
-    read -p "Please enter your choice: " choice
-    
-    case $choice in
-        [aA])
-            openstack keypair list | grep ${sshkey}${tag} > /dev/null 
-            if [[ $? -eq 0 ]]; then
-                echo "Keypair ${sshkey}${tag} already exists in OpenStack."
-            else
-                echo "Creating and downloading the keypair with name ${sshkey}${tag}."
-                openstack keypair create ${sshkey}${tag} > ~/.ssh/${sshkey}
-                cp ~/.ssh/${sshkey} roles/ansible/files/
-                sudo chmod 0600 ~/.ssh/${sshkey}
-                echo "Private key downloaded to ~/.ssh/${sshkey}."
-            fi
-            break
-            ;;
-        [bB])
-            openstack keypair list | grep ${sshkey}${tag} > /dev/null 
-            if [[ $? -eq 0 ]]; then
-                echo "key already exist in cloud"
-                openstack kepair delete ${sshkey}${tag} > /dev/null
-                echo "remove key pair let's upload key in our local machine ..."
-            fi 
-            echo "Checking if keypair exists locally..."
-            if [[ -f ~/.ssh/${sshkey} && -f ~/.ssh/${sshkey}.pub ]]; then 
-                echo "Key pair exists locally. Uploading this public key to OpenStack..."
-                openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}${tag}
-                cp ~/.ssh/${sshkey} roles/ansible/files/
-                if [[ $? -eq 0 ]]; then
-                    echo "$(date +%T) Public key uploaded successfully."
-                else   
-                    echo "Failed to upload the key."
-                    exit 1
-                fi 
-            else 
-                read -p "Key pair does not exist locally. Do you want to generate a new key pair? (y/n): " generate_choice
-                if [[ $generate_choice =~ ^[yY]$ ]]; then
-                    echo "Generating a new SSH key pair..."
-                    ssh-keygen -t rsa -b 4096 -f ~/.ssh/${sshkey} -N ""
-                    echo "Key pair generated. Uploading public key to OpenStack..."
-                    openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}${tag}
-                    cp ~/.ssh/${sshkey} roles/ansible/files/
-                    if [[ $? -eq 0 ]]; then
-                        echo "$(date +%T) Public key uploaded successfully."
-                    else   
-                        echo "Failed to upload the key."
-                    fi 
-                else
-                    echo "Creating a new keypair in OpenStack and downloading it..."
-                    openstack keypair create ${sshkey}${tag} > ~/.ssh/${sshkey}
-                    cp ~/.ssh/${sshkey} roles/ansible/files/
-                    sudo chmod 0600 ~/.ssh/${sshkey}
-                    echo "Private key downloaded to ~/.ssh/${sshkey}."
-                fi
-            fi
-            break
-            ;;
-        *)
-            echo "Invalid input. Please enter 'a' or 'b'."
-            ;;
-    esac
-done
+# Function to calculate the fingerprint of a key
+get_fingerprint() {
+     ssh-keygen -lf $1 -E md5 | awk '{print $2}' | sed 's/^MD5://'
+}
 
+# Check if the keypair exists in OpenStack
+echo "Checking if keypair exists in OpenStack..."
+cloud_key_fingerprint=$(openstack keypair show ${sshkey}${tag} -f value -c fingerprint 2>/dev/null)
+
+if [[ -z $cloud_key_fingerprint ]]; then
+    echo "Keypair does not exist in the cloud. Proceeding to upload local key."
+else
+    echo "Cloud keypair fingerprint: $cloud_key_fingerprint"
+fi
+
+# Check if the keypair exists locally
+echo "Checking if keypair exists locally at ~/.ssh/${sshkey}..."
+if [[ -f ~/.ssh/${sshkey}.pub ]]; then
+    local_key_fingerprint=$(get_fingerprint ~/.ssh/${sshkey}.pub)
+    echo "Local keypair fingerprint: $local_key_fingerprint"
+
+    if [[ "$cloud_key_fingerprint" == "$local_key_fingerprint" ]]; then
+        echo "The local and cloud keypairs are identical. No action needed."
+    else
+        if [[ ! -z $cloud_key_fingerprint ]]; then
+            echo "Keypair in the cloud is different from the local keypair. Deleting the cloud keypair."
+            openstack keypair delete ${sshkey}${tag}
+        fi
+
+        echo "Uploading local public key to OpenStack..."
+        openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}${tag}
+        if [[ $? -eq 0 ]]; then
+            echo "$(date +%T) Public key uploaded successfully."
+        else   
+            echo "Failed to upload the key."
+            exit 1
+        fi
+    fi
+else
+    echo "Keypair does not exist locally. Generating a new SSH key pair..."
+    ssh-keygen -t rsa -b 4096 -f ~/.ssh/${sshkey} -N ""
+    echo "Keypair generated. Uploading public key to OpenStack..."
+    openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}${tag}
+    if [[ $? -eq 0 ]]; then
+        echo "$(date +%T) Public key uploaded successfully."
+    else   
+        echo "Failed to upload the key."
+        exit 1
+    fi
+fi
 
 
 
@@ -370,8 +355,8 @@ fi
         inventory_file2="openstack_inventory2"
 
 # Assuming servers_json contains the JSON array of servers as you provided
-sleep 30
-echo " $(date +%T) sleep for 30 sec"
+sleep 60
+echo " $(date +%T) Wait for 30 sec"
 servers_json=$(openstack server list -f json --long)
 # Clear the content of the output files before writing
 > "$dev_file"
@@ -399,7 +384,7 @@ fi
 
   # Check if the address was successfully retrieved
   if [ -n "$addresses" ]; then
-    echo -e "Host $name \n\t Hostname $addresses \n\t User ubuntu \n\t IdentityFile /root/.ssh/$sshkey" >> $sshc_bastion
+echo -e "Host $name \n\t Hostname $addresses \n\t User ubuntu \n\t IdentityFile ~/.ssh/$sshkey" >> $sshc_bastion
     if [[ "$name" == *"dev"* && "$name" == *"$tag"* ]]; then
         echo "$name ansible_host=$addresses ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$dev_file"
         echo "$name" >> $bastion_test_file
@@ -418,7 +403,7 @@ fi
     val=$(openstack server show "$name")
     addresses=$(echo $val | grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
     if [ -n "$addresses" ]; then
-        echo -e "Host $name \n\t Hostname $addresses \n\t User ubuntu \n\t IdentityFile /root/.ssh/$sshkey" >> $sshc_bastion
+        echo -e "Host $name \n\t Hostname $addresses \n\t User ubuntu \n\t IdentityFile ~/.ssh/$sshkey" >> $sshc_bastion
         if [[ "$name" == *"dev"* && "$name" == *"$tag"* ]]; then
             echo "$name ansible_host=$addresses ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$dev_file"
             echo "$name" >> $dev_test_file

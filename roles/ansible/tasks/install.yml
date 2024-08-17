@@ -34,8 +34,8 @@
 
 - name: Copy SSH key
   copy:
-    src: "{{ name.sshkey }}"
-    dest: /root/.ssh/{{ name.sshkey }}
+    src: "{{ name.key }}"
+    dest: ~/.ssh/{{ name.key }}
     mode: '0600'
     owner: root
     group: root
@@ -53,7 +53,7 @@
 - name: Copy SSH config file
   copy:
     src: config
-    dest: /root/.ssh/config
+    dest: ~/.ssh/config
     mode: '0600'
     owner: root
     group: root

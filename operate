@@ -118,8 +118,8 @@ while true; do
         inventory_file2="openstack_inventory2"
 
 # Assuming servers_json contains the JSON array of servers as you provided
-sleep 5
-echo " $(date +%T) sleep for 5 sec"
+sleep 60
+echo " $(date +%T) sleep for 60 sec"
 servers_json=$(openstack server list -f json --long)
 
 # Clear the content of the output files before writing
@@ -148,7 +148,7 @@ fi
 
   # Check if the address was successfully retrieved
   if [ -n "$addresses" ]; then
-    echo -e "Host $name \n\t Hostname $addresses \n\t User ubuntu \n\t IdentityFile /root/.ssh/$sshkey" >> $sshc_bastion
+    echo -e "Host $name \n\t Hostname $addresses \n\t User ubuntu \n\t IdentityFile ~/.ssh/$sshkey" >> $sshc_bastion
     if [[ "$name" == *"dev"* && "$name" == *"$tag"* ]]; then
         echo "$name ansible_host=$addresses ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$dev_file"
         echo "$name" >> $bastion_test_file
@@ -167,7 +167,7 @@ fi
     val=$(openstack server show "$name")
     addresses=$(echo $val | grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
     if [ -n "$addresses" ]; then
-        echo -e "Host $name \n\t Hostname $addresses \n\t User ubuntu \n\t IdentityFile /root/.ssh/$sshkey" >> $sshc_bastion
+        echo -e "Host $name \n\t Hostname $addresses \n\t User ubuntu \n\t IdentityFile ~/.ssh/$sshkey" >> $sshc_bastion
         if [[ "$name" == *"dev"* && "$name" == *"$tag"* ]]; then
             echo "$name ansible_host=$addresses ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$dev_file"
             echo "$name" >> $dev_test_file
@@ -242,7 +242,7 @@ done
 
         rm -rf $inventory_file
 
-        chmod 600 "${sshkey}.pem" > /dev/null 2>&1
+        sudo chmod 600 "${sshkey}.pem" > /dev/null 2>&1
 
         rm -rf roles/ansible/files/*.zip > /dev/null 2>&1
 
@@ -262,8 +262,8 @@ rm -rf $sshc_bastion
 
 
 
-sleep 30 
-echo "wait for 5 sec before applying configurations"
+sleep 5
+echo " $(date +%T) wait for 5 sec before applying configurations"
 ansible-playbook app.yml
         
     else
