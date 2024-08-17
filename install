@@ -48,7 +48,7 @@ while true; do
                 echo "Creating and downloading the keypair with name ${sshkey}${tag}."
                 openstack keypair create ${sshkey}${tag} > ~/.ssh/${sshkey}
                 cp ~/.ssh/${sshkey} roles/ansible/files/
-                chmod 0600 ~/.ssh/${sshkey}
+                sudo chmod 0600 ~/.ssh/${sshkey}
                 echo "Private key downloaded to ~/.ssh/${sshkey}."
             fi
             break
@@ -88,7 +88,7 @@ while true; do
                     echo "Creating a new keypair in OpenStack and downloading it..."
                     openstack keypair create ${sshkey}${tag} > ~/.ssh/${sshkey}
                     cp ~/.ssh/${sshkey} roles/ansible/files/
-                    chmod 600 ~/.ssh/${sshkey}
+                    sudo chmod 0600 ~/.ssh/${sshkey}
                     echo "Private key downloaded to ~/.ssh/${sshkey}."
                 fi
             fi
@@ -370,8 +370,8 @@ fi
         inventory_file2="openstack_inventory2"
 
 # Assuming servers_json contains the JSON array of servers as you provided
-sleep 5
-echo " $(date +%T) sleep for 5 sec"
+sleep 30
+echo " $(date +%T) sleep for 30 sec"
 servers_json=$(openstack server list -f json --long)
 # Clear the content of the output files before writing
 > "$dev_file"
@@ -518,7 +518,7 @@ prometheus:
 EOF
 
 
-chmod 0600 ~/.ssh/${sshkey} > /dev/null 2>&1
+sudo chmod 0600 ~/.ssh/${sshkey} > /dev/null 2>&1
 
 rm -rf roles/ansible/files/*.zip > /dev/null 2>&1
 
@@ -542,7 +542,7 @@ cp $sshc_bastion roles/ansible/files/config
 
 cp ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
 
-chmod 0600 roles/ansible/files/config
+sudo chmod 0600 roles/ansible/files/config
 
 rm -rf $sshc_bastion
 

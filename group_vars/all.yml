@@ -1,10 +1,10 @@
 
 floatingIp:
-  bastion: 185.52.156.199
-  haproxy: 185.52.156.47
+  bastion: 185.52.156.78
+  haproxy: 185.52.156.144
 
 name:
-    sshkey: key1
+    key: key1
     tag: test
 
 prometheus:
