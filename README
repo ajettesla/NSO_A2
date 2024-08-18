@@ -6,3 +6,5 @@ sudo apt install jq -y
 sudo apt install ansible -y
 sudo apt install zip -y
 sudo apt install unzip -y 
+sudo apt install snmp -y
+sudo apt install curl -y
