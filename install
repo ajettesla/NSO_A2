@@ -719,7 +719,7 @@ if [ -z "$image_name" ] || [ -z "$flavor_name" ] || [ -z "$sshkey" ] || [ -z "$t
     exit 1
 fi
 
-openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${ssh_basename} --security-group external_security_group${tag}  bastion${tag} 2>&1 > /dev/null
+openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${ssh_basename}${tag} --security-group external_security_group${tag}  bastion${tag} 2>&1 > /dev/null
 
 if [ $? -eq 0 ]; then
     echo " $(date +%T ) Bastion machine is create "
@@ -728,7 +728,7 @@ else
     exit 1
 fi
 
-openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${ssh_basename} --security-group external_security_group${tag}  proxy_1${tag} 2>&1 > /dev/null
+openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${ssh_basename}${tag} --security-group external_security_group${tag}  proxy_1${tag} 2>&1 > /dev/null
 
 if [ $? -eq 0 ]; then
     echo " $(date +%T ) proxy machine is create "
@@ -738,7 +738,7 @@ else
 fi
 
 
-openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${ssh_basename} --security-group external_security_group${tag}  proxy_2${tag} 2>&1 > /dev/null
+openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${ssh_basename}${tag} --security-group external_security_group${tag}  proxy_2${tag} 2>&1 > /dev/null
 
 if [ $? -eq 0 ]; then
     echo " $(date +%T ) proxy machine is create "
@@ -768,7 +768,7 @@ fi
 
 for x in $(seq 1 $nofn); do
 
-  openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name ${ssh_basename} --security-group internal_security_group${tag} dev_"$x"${tag}  1>/dev/null
+  openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name ${ssh_basename}${tag} --security-group internal_security_group${tag} dev_"$x"${tag}  1>/dev/null
 
   if [ $? -eq 0 ]; then
       echo " $(date +%T ) dev${x} is created "
