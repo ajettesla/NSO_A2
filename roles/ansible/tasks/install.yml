@@ -58,6 +58,21 @@
     owner: root
     group: root
 
+- name: Copy SSH config file
+  copy:
+    src: prod
+    dest: /opt/NSO_A2/environments/prod
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Copy SSH config file
+  copy:
+    src: prod
+    dest: /opt/NSO_A2/environments/prod
+    mode: '0644'
+    owner: root
+    group: root
 
 
 

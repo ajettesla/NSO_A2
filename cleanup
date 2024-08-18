@@ -1,146 +1,153 @@
+#!/bin/bash
+
 openrc_file=$1
 tag=$2
 sshkey=$3
 
 source $openrc_file
-echo -n " $(date +%T) Specify if you want to delete key pair (y/n): "
-read -r response
 
-# Check the user's response
-if [[ "$response" == "y" || "$response" == "Y" ]]; then
-    # Assuming you have variables sshkey and tag defined earlier in your script
-    if openstack keypair delete "${sshkey}" 2>&1 > /dev/null; then
-        echo " $(date +%T) Key pair ${sshkey} deleted successfully."
-    else
-        echo "$(date +%T) Failed to delete key pair ${sshkey}. Please check the key pair name and try again."
-    fi
-else
-    echo " $(date +%T) Key pair deletion aborted."
-fi
+ssh_basename=$(basename $sshkey)
 
-echo -n "Specify if you want to delete key pair in local machine (y/n): "
-read -r response
-
-if [[ "$response" == "y" || "$response" == "Y" ]]; then
-    if [[ -f ~/.ssh/${sshkey} || -f ~/.ssh/${sshkey}.pub ]]; then
-        rm -f ~/.ssh/${sshkey} ~/.ssh/${sshkey}.pub
-        echo " $(date +%T) Key pair ${sshkey} deleted successfully."
-    else
-        echo " $(date +%T) Key pair does not exist."
-    fi
-else
-    echo " $(date +%T) Key pair deletion aborted."
-fi
-
-if [ $? -eq 0 ]; then
-    echo " $(date +%T ) keypair is removed "
-else
-    echo " $(date +%T ) Failed to remove keypair"
-fi
-
-for x in $(openstack floating ip list -f json | jq -r '.[]."Floating IP Address"'); do  
-    if [[ "$(openstack floating ip show $x -f json | jq -r '.tags')" == *"${tag}"* ]]; then   
-            openstack floating ip delete $x
-            echo " $(date +%T) $x id deleted"; 
-    else     
-            echo " $(date +%T) Failed to delete floating ip $x" ; 
-    fi; 
-done
-
-for server_id in $(openstack server list -f json | jq -r '.[].ID'); do
-    if [[ "$(openstack server show $server_id -f json | jq -r '.name' 2>/dev/null)" == *"${tag}"* ]]; then
-        openstack server delete $server_id
-        if [ $? -eq 0 ]; then
-            echo " $(date +%T) $server_id ($(openstack server show $server_id -f json | jq -r '.name')) is deleted "
+# Check if the keypair exists and prompt for deletion
+openstack keypair list | grep ${ssh_basename} > /dev/null
+if [[ $? -eq 0 ]]; then
+    echo -n " $(date +%T) Specify if you want to delete key pair from the cloud (y/n): "
+    read -r -t 2 response
+    if [[ "$response" == "y" || "$response" == "Y" ]]; then
+        openstack keypair delete "${ssh_basename}" 2>&1 > /dev/null
+        if [ $? = 0 ]; then
+            echo " $(date +%T) Key pair ${ssh_basename} deleted successfully."
         else
-            echo " $(date +%T) Failed to delete server $server_id ($(openstack server show $server_id -f json | jq -r '.name'))"
+            if openstack keypair list | grep -q ${ssh_basename}; then
+                echo "$(date +%T) Failed to delete key pair ${ssh_basename}."
+            else
+                echo "$(date +%T) Key pair ${ssh_basename} did not exist."
+            fi
         fi
     else
-        echo " $(date +%T) Server $server_id does not have the $tag tag"
+        echo " $(date +%T) Key pair deletion aborted."
+    fi
+else 
+    echo " $(date +%T) Key ${ssh_basename} is not present in the cloud."
+fi
+
+# Delete all matching floating IPs by their Floating IP Address
+for x in $(openstack floating ip list -f json | jq -r '.[]."Floating IP Address"'); do  
+    # Get the ID and Name of the floating IP
+    floating_ip_id=$(openstack floating ip show $x -f json | jq -r '.id')
+    floating_ip_name=$(openstack floating ip show $x -f json | jq -r '.floating_ip_address')
+    
+    # Check if the floating IP has the specified tag
+    if [[ "$(openstack floating ip show $x -f json | jq -r '.tags')" == *"${tag}"* ]]; then   
+        # Attempt to delete the floating IP
+        openstack floating ip delete $floating_ip_id > /dev/null 2>&1
+        if [ $? = 0 ]; then
+            echo " $(date +%T) Floating IP $floating_ip_id ($floating_ip_name) deleted"; 
+        else
+            echo " $(date +%T) Failed to delete Floating IP $floating_ip_id ($floating_ip_name)"; 
+        fi
+    else     
+        echo " $(date +%T) Floating IP $floating_ip_id ($floating_ip_name) did not have the specified tag, skipping deletion"; 
     fi
 done
 
+# Delete all matching servers by their IDs
+for server_id in $(openstack server list -f json | jq -r '.[] | select(.Name | contains("'"$tag"'")).ID'); do
+    server_name=$(openstack server show $server_id -f json | jq -r '.name')
+    openstack server delete $server_id > /dev/null 2>&1
+    if [ $? = 0 ]; then
+        echo " $(date +%T) Server $server_id ($server_name) deleted."
+    else
+        if openstack server show $server_id > /dev/null 2>&1; then
+            echo "$(date +%T) Failed to delete server $server_id ($server_name)."
+        else
+            echo "$(date +%T) Server $server_id ($server_name) did not exist."
+        fi
+    fi
+done
 
-openstack router remove subnet router_1${tag} private_subnet${tag}  > /dev/null  2>&1
+# Remove all matching subnets from the router by their IDs
+for subnet_id in $(openstack subnet list -f json | jq -r '.[] | select(.Name | contains("'"$tag"'")).ID'); do
+    subnet_name=$(openstack subnet show $subnet_id -f json | jq -r '.name')
+    openstack router remove subnet router_1${tag} $subnet_id > /dev/null 2>&1
+    if [ $? = 0 ]; then
+        echo " $(date +%T) Subnet $subnet_id ($subnet_name) removed from router_1${tag}."
+    else 
+        if openstack subnet show $subnet_id > /dev/null 2>&1; then
+            echo "$(date +%T) Failed to remove subnet $subnet_id ($subnet_name) from router_1${tag}."
+        else
+            echo "$(date +%T) Subnet $subnet_id ($subnet_name) did not exist."
+        fi
+    fi
+done
 
+# Unset router external gateway
+openstack router unset --external-gateway router_1${tag} > /dev/null 2>&1
 if [ $? = 0 ]; then
-    echo " $(date +%T ) private subnet is removed  from router 1 " 
+    echo " $(date +%T) Router external gateway unset."
 else 
-    echo " $(date +%T ) Failed to remove private subnet from router_1"
+    if openstack router show router_1${tag} > /dev/null 2>&1; then
+        echo " $(date +%T) Failed to unset router external gateway."
+    else
+        echo " $(date +%T) Router router_1${tag} did not exist."
+    fi
 fi
 
-openstack router remove subnet router_1${tag} public_subnet${tag}  > /dev/null 2>&1
+# Delete all matching subnets by their IDs
+for subnet_id in $(openstack subnet list -f json | jq -r '.[] | select(.Name | contains("'"$tag"'")).ID'); do
+    subnet_name=$(openstack subnet show $subnet_id -f json | jq -r '.name')
+    openstack subnet delete $subnet_id > /dev/null 2>&1
+    if [ $? = 0 ]; then
+        echo " $(date +%T) Subnet $subnet_id ($subnet_name) deleted."
+    else 
+        if openstack subnet show $subnet_id > /dev/null 2>&1; then
+            echo "$(date +%T) Failed to delete subnet $subnet_id ($subnet_name)."
+        else
+            echo "$(date +%T) Subnet $subnet_id ($subnet_name) did not exist."
+        fi
+    fi
+done
 
+# Delete the router by its ID
+router_id=$(openstack router list -f json | jq -r '.[] | select(.Name == "router_1'${tag}'").ID')
+router_name=$(openstack router show $router_id -f json | jq -r '.name')
+openstack router delete $router_id > /dev/null 2>&1
 if [ $? = 0 ]; then
-    echo " $(date +%T ) public sunet is removed form router 1 " 
+    echo " $(date +%T) Router $router_id ($router_name) deleted."
 else 
-    echo " $(date +%T ) Failed to remove public subnet from router 1"
+    if openstack router show $router_id > /dev/null 2>&1; then
+        echo " $(date +%T) Failed to delete router $router_id ($router_name)."
+    else
+        echo " $(date +%T) Router $router_id ($router_name) did not exist."
+    fi
 fi
 
-openstack router unset --external-gateway router_1${tag}  > /dev/null  2>&1
+# Delete all matching networks by their IDs
+for network_id in $(openstack network list -f json | jq -r '.[] | select(.Name | contains("'"$tag"'")).ID'); do
+    network_name=$(openstack network show $network_id -f json | jq -r '.name')
+    openstack network delete $network_id > /dev/null 2>&1
+    if [ $? = 0 ]; then
+        echo " $(date +%T) Network $network_id ($network_name) deleted."
+    else 
+        if openstack network show $network_id > /dev/null 2>&1; then
+            echo "$(date +%T) Failed to delete network $network_id ($network_name)."
+        else
+            echo "$(date +%T) Network $network_id ($network_name) did not exist."
+        fi
+    fi
+done
 
-if [ $? = 0 ]; then
-    echo " $(date +%T ) router unset external gateway" 
-else 
-    echo " $(date +%T ) Failed to unset external gateway"
-fi
-
-openstack subnet delete private_subnet${tag} > /dev/null 2>&1 
-
-if [ $? = 0 ]; then
-    echo " $(date +%T ) private subnet is removed " 
-else 
-    echo " $(date +%T ) Failed to remove private subnet"
-fi
-
-openstack subnet delete public_subnet${tag}  > /dev/null 2>&1
-
-if [ $? = 0 ]; then
-    echo " $(date +%T ) public subnet is removed " 
-else 
-    echo " $(date +%T ) Failed to remove public subnet"
-fi
-
-openstack router delete router_1${tag} > /dev/null 2>&1
-
-if [ $? = 0 ]; then
-    echo " $(date +%T ) router_1 is removed " 
-else 
-    echo " $(date +%T ) Failed to remove router_1"
-fi
-
-openstack network delete vrundhavan_public${tag} > /dev/null  2>&1
-
-if [ $? = 0 ]; then
-    echo " $(date +%T ) public network is removed " 
-else 
-    echo " $(date +%T ) Failed to remove public network"
-fi
-
-openstack network delete vrundhavan_private${tag}  > /dev/null 2>&1
-
-if [ $? = 0 ]; then
-    echo " $(date +%T ) private network is removed " 
-else 
-    echo " $(date +%T ) Failed to remove private network"
-fi
-
-openstack security group delete internal_security_group${tag}  > /dev/null 2>&1
-
-if [ $? = 0 ]; then
-    echo " $(date +%T ) internal sc is removed " 
-else 
-    echo " $(date +%T ) Failed to remove internal sc"
-fi
-
-openstack security group delete external_security_group${tag}  > /dev/null 2>&1
-
-if [ $? = 0 ]; then
-    echo " $(date +%T ) sg external is removed " 
-else 
-    echo " $(date +%T ) Failed to remove sc external"
-fi
-
-
-
-
+# Delete all matching security groups by their IDs
+for sg_id in $(openstack security group list -f json | jq -r '.[] | select(.Name | contains("'"$tag"'")).ID'); do
+    sg_name=$(openstack security group show $sg_id -f json | jq -r '.name')
+    openstack security group delete $sg_id > /dev/null 2>&1
+    if [ $? = 0 ]; then
+        echo " $(date +%T) Security group $sg_id ($sg_name) deleted."
+    else 
+        if openstack security group show $sg_id > /dev/null 2>&1; then
+            echo "$(date +%T) Failed to delete security group $sg_id ($sg_name)."
+        else
+            echo "$(date +%T) Security group $sg_id ($sg_name) did not exist."
+        fi
+    fi
+done

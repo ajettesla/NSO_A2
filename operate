@@ -10,18 +10,24 @@ process_servers_json() {
     bastion_test_file="bastion_inventory2.tmp"
     inventory_file="openstack_inventory"
     inventory_file2="openstack_inventory2"
+    inventory_fileL="openstack_inventoryL"
     sshc_bastion="sshc_bastion.tmp"
+    proxy_fileL="proxy_fileL.tmp"
+    bastion_fileL="bastion_fileL.tmp"
 
     # Clear the content of the output files before writing
     > "$dev_file"
     > "$dev_test_file"
     > "$proxy_file"
+    > "$proxy_fileL"
     > "$proxy_test_file"
     > "$bastion_file"
     > "$bastion_test_file"
     > "$sshc_bastion"
     > "$inventory_file"
     > "$inventory_file2"
+    > "$inventory_fileL"
+    > "$bastion_fileL"
 
     # Fetch the JSON output from OpenStack
     #!/bin/bash
@@ -101,16 +107,26 @@ fi
        
 
         if [ -n "$private_IP" ]; then
-            echo -e "Host $name \n\t Hostname $private_IP \n\t User ubuntu \n\t IdentityFile ~/.ssh/$sshkey" >> $sshc_bastion
+            echo -e "Host $name \n\t Hostname $private_IP \n\t User ubuntu \n\t IdentityFile ~/.ssh/$ssh_basename" >> $sshc_bastion
             if [[ "$name" == *"dev"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$dev_file"
+                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$dev_file"
                 echo "$name" >> $bastion_test_file
             elif [[ "$name" == *"proxy"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$proxy_file"
+                public_IP=$(echo "$server" | jq -r '.Networks | to_entries[].value[1]' | head -n 1)
+                if [[ -z $public_IP ]]; then
+                    echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$proxy_file"
+                else
+                    if [[ -n $public_IP ]]; then
+                    echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=${sshkey}" >> "$proxy_fileL"
+                    fi 
+                    echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$proxy_file"
+                fi
+                
                 echo "$name" >> $bastion_test_file
             elif [[ "$name" == *"bastion"* && "$name" == *"$tag"* ]]; then
                 public_IP=$(echo "$server" | jq -r '.Networks | to_entries[].value[1]' | head -n 1)
-                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$bastion_file"
+                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=${sshkey}" >> "$bastion_fileL"
+                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$bastion_file"
                 echo "$name" >> $bastion_test_file
             fi
         else 
@@ -142,8 +158,19 @@ fi
       cat "$bastion_test_file"
     } > "$inventory_file2"
 
+    {
+      echo "[local]"
+      echo "localhost ansible_connection=local"
+      echo ""
+      echo "[proxy]"
+      cat "$proxy_fileL"
+      echo "[bastion]"
+      cat "$bastion_fileL"      
+
+    } > "$inventory_fileL"
+
     # Clean up temporary files
-    rm -f "$dev_file" "$proxy_file" "$bastion_file" "$dev_test_file" "$proxy_test_file" "$bastion_test_file"
+    rm -f "$dev_file" "$proxy_file" "$proxy_fileL" "$bastion_file" "$bastion_fileL" "$dev_test_file" "$proxy_test_file" "$bastion_test_file"
 
     # Append groupings
     {
@@ -166,21 +193,19 @@ fi
 
 echo " $(date +%T) Inventory file generated: $inventory_file"
 
-cp "$inventory_file" environments/prod
-
-cp $inventory_file2 environments/prod2
-
-rm -rf $inventory_file
+cp "$inventory_file" roles/ansible/files/prod
+cp "$inventory_file2" roles/ansible/files/prod2
+cp "$inventory_fileL" environments/prod
 cp $sshc_bastion roles/ansible/files/config
 
-cp ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
+rm -rf $inventory_file
 
-sudo chmod 0600 roles/ansible/files/config
+rm -rf $inventory_file2
+
+rm -rf $inventory_fileL
 
 rm -rf $sshc_bastion
-
 }
-
 process_servers_csv() {
     # Define temporary files
     dev_file="dev_inventory.tmp"
@@ -191,18 +216,24 @@ process_servers_csv() {
     bastion_test_file="bastion_inventory2.tmp"
     inventory_file="openstack_inventory"
     inventory_file2="openstack_inventory2"
+    inventory_fileL="openstack_inventoryL"
     sshc_bastion="sshc_bastion.tmp"
+    proxy_fileL="proxy_fileL.tmp"
+    bastion_fileL="bastion_fileL.tmp"
 
     # Clear the content of the output files before writing
     > "$dev_file"
     > "$dev_test_file"
     > "$proxy_file"
+    > "$proxy_fileL"
     > "$proxy_test_file"
     > "$bastion_file"
     > "$bastion_test_file"
     > "$sshc_bastion"
     > "$inventory_file"
     > "$inventory_file2"
+    > "$inventory_fileL"
+    > "$bastion_fileL"
 
     servers_csv=$(openstack server list -f csv --long | tail -n +2)
 
@@ -215,14 +246,11 @@ process_servers_csv() {
         name=$(echo $server | cut -d "," -f 2 | tr -d '"')
         power_state=$(echo $server | cut -d "," -f 5 | tr -d '"')
 
-
         if [[ "$power_state" -ne 1 ]]; then 
             all_active=false
             break
         fi
     done < <(echo "$servers_csv")
-
- 
 
     if [ "$all_active" = false ]; then
         echo  " $(date +%T) Some servers are not in ACTIVE state. Waiting for up to 60 seconds for them to become active..."
@@ -274,19 +302,27 @@ process_servers_csv() {
         networks=$(echo $server | cut -d "," -f 6)
 
         # Extract public IP
-        public_IP=$(echo $server | cut -d"," -f 7 | grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
+        public_IP=$(echo $server | cut -d "," -f 7 | grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
         private_IP=$(echo $server | cut -d "," -f 6 | grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
 
         if [ -n "$private_IP" ]; then
-            echo -e "Host $name \n\t Hostname $private_IP \n\t User ubuntu \n\t IdentityFile ~/.ssh/$sshkey" >> $sshc_bastion
+            echo -e "Host $name \n\t Hostname $private_IP \n\t User ubuntu \n\t IdentityFile ~/.ssh/$ssh_basename" >> $sshc_bastion
             if [[ "$name" == *"dev"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$dev_file"
+                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey_basename}" >> "$dev_file"
                 echo "$name" >> $bastion_test_file
             elif [[ "$name" == *"proxy"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$proxy_file"
+                if [[ -z $public_IP ]]; then
+                    echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey_basename}" >> "$proxy_file"
+                else
+                    if [[ -n $public_IP ]]; then
+                    echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=${sshkey}" >> "$proxy_fileL"
+                    fi 
+                    echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$proxy_file"
+                fi
                 echo "$name" >> $bastion_test_file
             elif [[ "$name" == *"bastion"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$bastion_file"
+                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=${sshkey}" >> "$bastion_fileL"
+                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$bastion_file"
                 echo "$name" >> $bastion_test_file
             fi
         else 
@@ -318,10 +354,21 @@ process_servers_csv() {
       cat "$bastion_test_file"
     } > "$inventory_file2"
 
-    # Clean up temporary files
-    rm -f "$dev_file" "$proxy_file" "$bastion_file" "$dev_test_file" "$proxy_test_file" "$bastion_test_file"
+    # Create the third inventory file (inventory_fileL)
+    {
+      echo "[local]"
+      echo "localhost ansible_connection=local"
+      echo ""
+      echo "[proxy]"
+      cat "$proxy_fileL"
+      echo "[bastion]"
+      cat "$bastion_fileL"
+    } > "$inventory_fileL"
 
-        # Append groupings
+    # Clean up temporary files
+    rm -f "$dev_file" "$proxy_file" "$proxy_fileL" "$bastion_file" "$bastion_fileL" "$dev_test_file" "$proxy_test_file" "$bastion_test_file"
+
+    # Append groupings
     {
         echo -e "\n"
         echo "[all:children]"
@@ -340,16 +387,21 @@ process_servers_csv() {
         echo "bastion"
     } >> "$inventory_file2"
 
-echo " $(date +%T) Inventory file generated: $inventory_file"
+    echo " $(date +%T) Inventory file generated: $inventory_file"
 
-cp "$inventory_file" environments/prod
+    cp "$inventory_file" roles/ansible/files/prod
+    cp "$inventory_file2" roles/ansible/files/prod2
+    cp "$inventory_fileL" environments/prod
 
-cp $inventory_file2 environments/prod2
+    cp $sshc_bastion roles/ansible/files/config
 
-rm -rf $inventory_file
+    sudo chmod 0600 roles/ansible/files/config
 
+    rm -rf $inventory_file
+    rm -rf $inventory_file2
+    rm -rf $inventory_fileL
+    rm -rf $sshc_bastion
 }
-
 # Ensure the script receives exactly three arguments
 if [ "$#" -ne 3 ]; then
     echo "Usage: $0 <openrc_file> <tag> <sshkey>"
@@ -364,12 +416,14 @@ sshkey=$3
 # Source the OpenRC file to set environment variables
 source "$openrc_file"
 
+ssh_basename=$(basename $sshkey)
+
 # Path to the configuration file
 config_file="server.conf"
 
 sshc_my="~/.ssh/config/"
 
-sshc_bastion="config"
+sshc_bastion="./ssh/config"
 
 # Ensure the configuration file exists
 if [ ! -f "$config_file" ]; then
@@ -434,7 +488,7 @@ while true; do
         check=$(($number - $nofsr))
 
         for x in $(seq 1 "$check"); do
-            openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name $sshkey --security-group internal_security_group${tag} -f json  dev_"$(($nofsr + $x))"${tag} 1>/dev/null
+            openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name $ssh_basename --security-group internal_security_group${tag}  dev_"$(($nofsr + $x))"${tag} 1>/dev/null
             if [ $? -eq 0 ]; then
                 echo " $(date +%T) dev_$(($nofsr + $x)) is created"
                 changes_made=true
@@ -451,14 +505,24 @@ while true; do
     if [ "$changes_made" = true ]; then
         # Define filenames
         # Temporary files for storing device names
-        process_servers_json
+ process_servers_json 2>error.log
 
- if [[ $? -ne 0 ]]; then
-    echo " $(date +%T) some thing wrong with JSON formate let's solve this by CSV"
+if grep -q "jq" error.log; then
+    echo " $(date +%T) Something wrong with JSON format. Let's solve this by CSV."
     process_servers_csv
 fi
+rm -rf error.log
 
-        sudo chmod 600 "${sshkey}.pem" > /dev/null 2>&1
+        
+file_permissions=$(stat -c "%a" ${sshkey})
+
+# Check if the permissions are equal to 0600
+if [ "$file_permissions" -eq 600 ]; then
+    echo " $(date +%T) The file has the correct permissions: 0600"
+else
+    echo " $(date +%T) The file ${sshkey} does not have the correct permissions. Current permissions: $file_permissions"
+    sudo chmod 0600 ${sshkey} > /dev/null 2>&1
+fi
 
         rm -rf roles/ansible/files/*.zip > /dev/null 2>&1
 
@@ -468,14 +532,6 @@ fi
         
         cd NSO_A2/
         
-        cp $sshc_bastion roles/ansible/files/config
-
-cp ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
-
-chmod 0600 roles/ansible/files/config
-
-rm -rf $sshc_bastion
-
 
 
 sleep 5

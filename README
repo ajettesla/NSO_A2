@@ -2,6 +2,7 @@ sudo apt install software-properties-common -y
 sudo add-apt-repository cloud-archive:yoga
 sudo apt update
 sudo apt install python3-openstackclient -y
-sudo apt install jq
-sudo apt install ansible
-
+sudo apt install jq -y 
+sudo apt install ansible -y
+sudo apt install zip -y
+sudo apt install unzip -y 

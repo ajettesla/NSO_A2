@@ -10,18 +10,24 @@ process_servers_json() {
     bastion_test_file="bastion_inventory2.tmp"
     inventory_file="openstack_inventory"
     inventory_file2="openstack_inventory2"
+    inventory_fileL="openstack_inventoryL"
     sshc_bastion="sshc_bastion.tmp"
+    proxy_fileL="proxy_fileL.tmp"
+    bastion_fileL="bastion_fileL.tmp"
 
     # Clear the content of the output files before writing
     > "$dev_file"
     > "$dev_test_file"
     > "$proxy_file"
+    > "$proxy_fileL"
     > "$proxy_test_file"
     > "$bastion_file"
     > "$bastion_test_file"
     > "$sshc_bastion"
     > "$inventory_file"
     > "$inventory_file2"
+    > "$inventory_fileL"
+    > "$bastion_fileL"
 
     # Fetch the JSON output from OpenStack
     #!/bin/bash
@@ -101,16 +107,26 @@ fi
        
 
         if [ -n "$private_IP" ]; then
-            echo -e "Host $name \n\t Hostname $private_IP \n\t User ubuntu \n\t IdentityFile ~/.ssh/$sshkey" >> $sshc_bastion
+            echo -e "Host $name \n\t Hostname $private_IP \n\t User ubuntu \n\t IdentityFile ~/.ssh/$ssh_basename" >> $sshc_bastion
             if [[ "$name" == *"dev"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$dev_file"
+                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$dev_file"
                 echo "$name" >> $bastion_test_file
             elif [[ "$name" == *"proxy"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$proxy_file"
+                public_IP=$(echo "$server" | jq -r '.Networks | to_entries[].value[1]' | head -n 1)
+                if [[ -z $public_IP ]]; then
+                    echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$proxy_file"
+                else
+                    if [[ -n $public_IP ]]; then
+                    echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=${sshkey}" >> "$proxy_fileL"
+                    fi 
+                    echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$proxy_file"
+                fi
+                
                 echo "$name" >> $bastion_test_file
             elif [[ "$name" == *"bastion"* && "$name" == *"$tag"* ]]; then
                 public_IP=$(echo "$server" | jq -r '.Networks | to_entries[].value[1]' | head -n 1)
-                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$bastion_file"
+                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=${sshkey}" >> "$bastion_fileL"
+                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$bastion_file"
                 echo "$name" >> $bastion_test_file
             fi
         else 
@@ -142,8 +158,19 @@ fi
       cat "$bastion_test_file"
     } > "$inventory_file2"
 
+    {
+      echo "[local]"
+      echo "localhost ansible_connection=local"
+      echo ""
+      echo "[proxy]"
+      cat "$proxy_fileL"
+      echo "[bastion]"
+      cat "$bastion_fileL"      
+
+    } > "$inventory_fileL"
+
     # Clean up temporary files
-    rm -f "$dev_file" "$proxy_file" "$bastion_file" "$dev_test_file" "$proxy_test_file" "$bastion_test_file"
+    rm -f "$dev_file" "$proxy_file" "$proxy_fileL" "$bastion_file" "$bastion_fileL" "$dev_test_file" "$proxy_test_file" "$bastion_test_file"
 
     # Append groupings
     {
@@ -166,22 +193,19 @@ fi
 
 echo " $(date +%T) Inventory file generated: $inventory_file"
 
-cp "$inventory_file" environments/prod
-
-cp $inventory_file2 environments/prod2
-
+cp "$inventory_file" roles/ansible/files/prod
+cp "$inventory_file2" roles/ansible/files/prod2
+cp "$inventory_fileL" environments/prod
 cp $sshc_bastion roles/ansible/files/config
 
 rm -rf $inventory_file
 
 rm -rf $inventory_file2
 
-
-sudo chmod 0600 roles/ansible/files/config
+rm -rf $inventory_fileL
 
 rm -rf $sshc_bastion
 }
-
 process_servers_csv() {
     # Define temporary files
     dev_file="dev_inventory.tmp"
@@ -192,18 +216,24 @@ process_servers_csv() {
     bastion_test_file="bastion_inventory2.tmp"
     inventory_file="openstack_inventory"
     inventory_file2="openstack_inventory2"
+    inventory_fileL="openstack_inventoryL"
     sshc_bastion="sshc_bastion.tmp"
+    proxy_fileL="proxy_fileL.tmp"
+    bastion_fileL="bastion_fileL.tmp"
 
     # Clear the content of the output files before writing
     > "$dev_file"
     > "$dev_test_file"
     > "$proxy_file"
+    > "$proxy_fileL"
     > "$proxy_test_file"
     > "$bastion_file"
     > "$bastion_test_file"
     > "$sshc_bastion"
     > "$inventory_file"
     > "$inventory_file2"
+    > "$inventory_fileL"
+    > "$bastion_fileL"
 
     servers_csv=$(openstack server list -f csv --long | tail -n +2)
 
@@ -216,14 +246,11 @@ process_servers_csv() {
         name=$(echo $server | cut -d "," -f 2 | tr -d '"')
         power_state=$(echo $server | cut -d "," -f 5 | tr -d '"')
 
-
         if [[ "$power_state" -ne 1 ]]; then 
             all_active=false
             break
         fi
     done < <(echo "$servers_csv")
-
- 
 
     if [ "$all_active" = false ]; then
         echo  " $(date +%T) Some servers are not in ACTIVE state. Waiting for up to 60 seconds for them to become active..."
@@ -275,19 +302,27 @@ process_servers_csv() {
         networks=$(echo $server | cut -d "," -f 6)
 
         # Extract public IP
-        public_IP=$(echo $server | cut -d"," -f 7 | grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
+        public_IP=$(echo $server | cut -d "," -f 7 | grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
         private_IP=$(echo $server | cut -d "," -f 6 | grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
 
         if [ -n "$private_IP" ]; then
-            echo -e "Host $name \n\t Hostname $private_IP \n\t User ubuntu \n\t IdentityFile ~/.ssh/$sshkey" >> $sshc_bastion
+            echo -e "Host $name \n\t Hostname $private_IP \n\t User ubuntu \n\t IdentityFile ~/.ssh/$ssh_basename" >> $sshc_bastion
             if [[ "$name" == *"dev"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$dev_file"
+                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey_basename}" >> "$dev_file"
                 echo "$name" >> $bastion_test_file
             elif [[ "$name" == *"proxy"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$proxy_file"
+                if [[ -z $public_IP ]]; then
+                    echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${sshkey_basename}" >> "$proxy_file"
+                else
+                    if [[ -n $public_IP ]]; then
+                    echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=${sshkey}" >> "$proxy_fileL"
+                    fi 
+                    echo "$name ansible_host=$private_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$proxy_file"
+                fi
                 echo "$name" >> $bastion_test_file
             elif [[ "$name" == *"bastion"* && "$name" == *"$tag"* ]]; then
-                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${sshkey}" >> "$bastion_file"
+                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=${sshkey}" >> "$bastion_fileL"
+                echo "$name ansible_host=$public_IP ansible_ssh_private_key_file=~/.ssh/${ssh_basename}" >> "$bastion_file"
                 echo "$name" >> $bastion_test_file
             fi
         else 
@@ -319,10 +354,21 @@ process_servers_csv() {
       cat "$bastion_test_file"
     } > "$inventory_file2"
 
-    # Clean up temporary files
-    rm -f "$dev_file" "$proxy_file" "$bastion_file" "$dev_test_file" "$proxy_test_file" "$bastion_test_file"
+    # Create the third inventory file (inventory_fileL)
+    {
+      echo "[local]"
+      echo "localhost ansible_connection=local"
+      echo ""
+      echo "[proxy]"
+      cat "$proxy_fileL"
+      echo "[bastion]"
+      cat "$bastion_fileL"
+    } > "$inventory_fileL"
 
-        # Append groupings
+    # Clean up temporary files
+    rm -f "$dev_file" "$proxy_file" "$proxy_fileL" "$bastion_file" "$bastion_fileL" "$dev_test_file" "$proxy_test_file" "$bastion_test_file"
+
+    # Append groupings
     {
         echo -e "\n"
         echo "[all:children]"
@@ -341,23 +387,22 @@ process_servers_csv() {
         echo "bastion"
     } >> "$inventory_file2"
 
-echo " $(date +%T) Inventory file generated: $inventory_file"
+    echo " $(date +%T) Inventory file generated: $inventory_file"
 
-cp "$inventory_file" environments/prod
+    cp "$inventory_file" roles/ansible/files/prod
+    cp "$inventory_file2" roles/ansible/files/prod2
+    cp "$inventory_fileL" environments/prod
 
-cp $inventory_file2 environments/prod2
+    cp $sshc_bastion roles/ansible/files/config
 
-rm -rf $inventory_file
+    sudo chmod 0600 roles/ansible/files/config
 
-rm -rf $inventory_file2
-
-
-cp $sshc_bastion roles/ansible/files/config
-
-sudo chmod 0600 roles/ansible/files/config
-
-rm -rf $sshc_bastion
+    rm -rf $inventory_file
+    rm -rf $inventory_file2
+    rm -rf $inventory_fileL
+    rm -rf $sshc_bastion
 }
+
 
 
 openrc_file=$1
@@ -385,9 +430,13 @@ fi
 # Source the OpenRC file
 source "$openrc_file"
 
+ssh_basename=$(basename ${sshkey})
+
+mkdir -p .ssh/
+
 sshc_my="~/.ssh/config/"
 
-sshc_bastion="config"
+sshc_bastion="./ssh/config"
 
 # Check if the OpenStack CLI command is available and working
 openstack flavor list > /dev/null 2>&1;
@@ -407,7 +456,7 @@ get_fingerprint() {
 
 # Check if the keypair exists in OpenStack
 echo " $(date +%T) Checking if keypair exists in OpenStack..."
-cloud_key_fingerprint=$(openstack keypair show ${sshkey} -f value -c fingerprint 2>/dev/null)
+cloud_key_fingerprint=$(openstack keypair show ${ssh_basename}${tag} -f value -c fingerprint 2>/dev/null)
 
 if [[ -z $cloud_key_fingerprint ]]; then
     echo " $(date +%T) Keypair does not exist in the cloud. Proceeding to upload local key."
@@ -416,9 +465,9 @@ else
 fi
 
 # Check if the keypair exists locally
-echo " $(date +%T) Checking if keypair exists locally at ~/.ssh/${sshkey}..."
-if [[ -f ~/.ssh/${sshkey}.pub ]]; then
-    local_key_fingerprint=$(get_fingerprint ~/.ssh/${sshkey}.pub)
+echo " $(date +%T) Checking if keypair exists locally at ${sshkey}..."
+if [[ -f ${sshkey}.pub ]]; then
+    local_key_fingerprint=$(get_fingerprint ${sshkey}.pub)
     echo " $(date +%T) Local keypair fingerprint: $local_key_fingerprint"
 
     if [[ "$cloud_key_fingerprint" == "$local_key_fingerprint" ]]; then
@@ -426,11 +475,11 @@ if [[ -f ~/.ssh/${sshkey}.pub ]]; then
     else
         if [[ ! -z $cloud_key_fingerprint ]]; then
             echo " $(date +%T) Keypair in the cloud is different from the local keypair. Deleting the cloud keypair."
-            openstack keypair delete ${sshkey}
+            openstack keypair delete ${ssh_basename}${tag}
         fi
 
-        echo "Uploading local public key to OpenStack..."
-        openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}
+        echo " $(date +%T) Uploading local public key to OpenStack..."
+        openstack keypair create --public-key ${sshkey}.pub ${ssh_basename}${tag}
         if [[ $? -eq 0 ]]; then
             echo " $(date +%T) Public key uploaded successfully."
         else   
@@ -439,10 +488,10 @@ if [[ -f ~/.ssh/${sshkey}.pub ]]; then
         fi
     fi
 else
-    echo "Keypair does not exist locally. Generating a new SSH key pair..."
-    ssh-keygen -t rsa -b 4096 -f ~/.ssh/${sshkey} -N ""
-    echo "Keypair generated. Uploading public key to OpenStack..."
-    openstack keypair create --public-key ~/.ssh/${sshkey}.pub ${sshkey}
+    echo " $(date +%T) Keypair does not exist locally. Generating a new SSH key pair..."
+    ssh-keygen -t rsa -b 4096 -f ${sshkey} -N "" > /dev/null
+    echo " $(date +%T) Keypair generated. Uploading public key to OpenStack..."
+    openstack keypair create --public-key ${sshkey}.pub ${sshkey}
     if [[ $? -eq 0 ]]; then
         echo " $(date +%T) Public key uploaded successfully."
     else   
@@ -453,162 +502,210 @@ fi
 
 mkdir -p roles/ansible/files/ > /dev/null
 
-cp  ~/.ssh/${sshkey} roles/ansible/files/${sshkey}
-
+cp  ${sshkey} roles/ansible/files/${ssh_basename}
 
 create_public_network() {
-    openstack network create vrundhavan_public${tag} --tag ${tag} >/dev/null
-    if [ $? -eq 0 ]; then
-        echo " $(date +%T) Public network is created."
+    if openstack network list | grep -q vrundhavan_public${tag}; then
+        echo " $(date +%T) Public network already exists."
     else
-        echo " $(date +%T) Failed to create Public network."
-        exit 1
+        openstack network create vrundhavan_public${tag} --tag ${tag} >/dev/null
+        if [ $? -eq 0 ]; then
+            echo " $(date +%T) Public network is created."
+        else
+            echo " $(date +%T) Failed to create Public network."
+            exit 1
+        fi
     fi
 }
-
-openstack network list | grep vrundhavan_public${tag} > /dev/null
-
-if [ $? -ne 0 ]; then
-    create_public_network
-else 
-    openstack network delete vrundhavan_public${tag} > /dev/null
-    if [ $? -eq 0 ]; then 
-        create_public_network
-    else 
-        echo " $(date +%T) Failed to delete Public network."
-        exit
-    fi 
-fi 
 
 create_private_network() {
-    openstack network create vrundhavan_private${tag} --tag ${tag} >/dev/null
-    if [ $? -eq 0 ]; then
-        echo " $(date +%T) Private network is created."
+    if openstack network list | grep -q vrundhavan_private${tag}; then
+        echo " $(date +%T) Private network already exists."
     else
-        echo " $(date +%T) Failed to create Private network."
-        exit 1
+        openstack network create vrundhavan_private${tag} --tag ${tag} >/dev/null
+        if [ $? -eq 0 ]; then
+            echo " $(date +%T) Private network is created."
+        else
+            echo " $(date +%T) Failed to create Private network."
+            exit 1
+        fi
     fi
 }
 
-openstack network list | grep vrundhavan_private${tag} > /dev/null
+create_public_network
+create_private_network
 
-if [ $? -ne 0 ]; then
-    create_private_network
-else 
-    openstack network delete vrundhavan_private${tag} > /dev/null
-    if [ $? -eq 0 ]; then 
-        create_private_network
-    else 
-        echo " $(date +%T) Failed to delete Private network."
-        exit
-    fi 
-fi 
-
-openstack subnet create --dhcp --network vrundhavan_public${tag} --subnet-range 10.1.1.0/24 public_subnet${tag} --tag ${tag} 1>/dev/null
-
-if [ $? -eq 0 ]; then
-    echo " $(date +%T ) Public subnet is created."
+# Check and create subnets
+if openstack subnet list | grep -q public_subnet${tag}; then
+    echo " $(date +%T) Public subnet already exists."
 else
-    echo " $(date +%T ) Fail to create public subnet"
-    exit 1
+    openstack subnet create --dhcp --network vrundhavan_public${tag} --subnet-range 10.1.1.0/24 public_subnet${tag} --tag ${tag} 1>/dev/null
+    if [ $? -eq 0 ]; then
+        echo " $(date +%T) Public subnet is created."
+    else
+        echo " $(date +%T) Fail to create public subnet."
+        exit 1
+    fi
 fi
 
-openstack subnet create --dhcp --network vrundhavan_private${tag} --subnet-range 10.1.2.0/24 private_subnet${tag} --tag ${tag} 1>/dev/null
-
-if [ $? -eq 0 ]; then
-    echo " $(date +%T ) Private subnet is created."
+if openstack subnet list | grep -q private_subnet${tag}; then
+    echo " $(date +%T) Private subnet already exists."
 else
-    echo " $(date +%T ) Fail to create Private subnet"
-    exit 1
+    openstack subnet create --dhcp --network vrundhavan_private${tag} --subnet-range 10.1.2.0/24 private_subnet${tag} --tag ${tag} 1>/dev/null
+    if [ $? -eq 0 ]; then
+        echo " $(date +%T) Private subnet is created."
+    else
+        echo " $(date +%T) Fail to create Private subnet."
+        exit 1
+    fi
 fi
 
-openstack security group create external_security_group${tag} --tag ${tag} 1>/dev/null
-
-if [ $? -eq 0 ]; then
-    echo " $(date +%T ) External security group is created."
+# Check and create security groups
+if openstack security group list | grep -q external_security_group${tag}; then
+    echo " $(date +%T) External security group already exists."
 else
-    echo " $(date +%T ) Fail to create External security group"
-    exit 1
+    openstack security group create external_security_group${tag} --tag ${tag} 1>/dev/null
+    if [ $? -eq 0 ]; then
+        echo " $(date +%T) External security group is created."
+    else
+        echo " $(date +%T) Fail to create External security group."
+        exit 1
+    fi
 fi
 
-openstack security group create internal_security_group${tag} --tag ${tag} 1>/dev/null
-
-if [ $? -eq 0 ]; then
-    echo " $(date +%T ) Internal security group is created."
+if openstack security group list | grep -q internal_security_group${tag}; then
+    echo " $(date +%T) Internal security group already exists."
 else
-    echo " $(date +%T ) Fail to create Internal security group"
-    exit 1
+    openstack security group create internal_security_group${tag} --tag ${tag} 1>/dev/null
+    if [ $? -eq 0 ]; then
+        echo " $(date +%T) Internal security group is created."
+    else
+        echo " $(date +%T) Fail to create Internal security group."
+        exit 1
+    fi
 fi
 
-openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 22 --protocol tcp --ingress external_security_group${tag} >/dev/null
-openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 5000 --protocol tcp --ingress external_security_group${tag} >/dev/null
-openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 9090 --protocol tcp --ingress external_security_group${tag} >/dev/null
-openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 3000 --protocol tcp --ingress external_security_group${tag} >/dev/null
-openstack security group rule create --remote-ip 10.1.0.0/16 --protocol any --ingress external_security_group${tag} > /dev/null
-openstack security group rule create --remote-ip 0.0.0.0/0 --dst-port 6000 --protocol udp --ingress external_security_group${tag} >/dev/null
-openstack security group rule create --remote-ip 0.0.0.0/0 --protocol icmp --ingress external_security_group${tag} >/dev/null
+# Function to check if a security group rule exists and create it if it does not
+add_security_group_rule_if_not_exists() {
+    local security_group=$1
+    local protocol=$2
+    local port=$3
+    local remote_ip=$4
+
+    if [ -z "$port" ]; then
+        port_filter=".\"Port Range\" == null"
+    else
+        port_filter=".\"Port Range\" == \"$port\""
+    fi
+
+    if openstack security group rule list $security_group -f json | jq -r ".[] | select(.\"Remote IP Prefix\" == \"$remote_ip\" and $port_filter and .Protocol == \"$protocol\")" | grep -q .; then
+        echo " $(date +%T) Security group rule for $protocol on port $port with remote IP $remote_ip already exists in $security_group."
+    else
+        if [ -z "$port" ]; then
+            openstack security group rule create --remote-ip $remote_ip --protocol $protocol --ingress $security_group >/dev/null 2>&1
+        else
+            openstack security group rule create --remote-ip $remote_ip --dst-port $port --protocol $protocol --ingress $security_group >/dev/null 2>&1
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo " $(date +%T) Security group rule for $protocol on port $port with remote IP $remote_ip added to $security_group."
+        else
+            echo " $(date +%T) Security group rule for $protocol on port $port with remote IP $remote_ip already exists in $security_group."
+        fi
+    fi
+}
+
+# Apply security group rules
+add_security_group_rule_if_not_exists external_security_group${tag} tcp 22 0.0.0.0/0
+add_security_group_rule_if_not_exists external_security_group${tag} tcp 5000 0.0.0.0/0
+add_security_group_rule_if_not_exists external_security_group${tag} tcp 9090 0.0.0.0/0
+add_security_group_rule_if_not_exists external_security_group${tag} tcp 3000 0.0.0.0/0
+add_security_group_rule_if_not_exists external_security_group${tag} any "" 10.1.0.0/16
+add_security_group_rule_if_not_exists external_security_group${tag} udp 6000 0.0.0.0/0
+add_security_group_rule_if_not_exists external_security_group${tag} icmp "" 0.0.0.0/0
+add_security_group_rule_if_not_exists internal_security_group${tag} any "" 10.1.0.0/16
 
 
-openstack security group rule create --remote-ip 10.1.0.0/16 --protocol any --ingress internal_security_group${tag}  > /dev/null
+echo " $(date +%T) Security group rules have been added."
 
-echo " $(date +%T ) security group have rule's now"
-
-openstack router create router_1${tag} --tag ${tag} 1>/dev/null
-
-if [ $? -eq 0 ]; then
-    echo " $(date +%T ) Router is created."
+# Check if the router exists, if not, create it
+if openstack router list | grep -q router_1${tag}; then
+    echo " $(date +%T) Router already exists."
 else
-    echo " $(date +%T ) Fail to create Router."
-    exit 1
+    openstack router create router_1${tag} --tag ${tag} 1>/dev/null
+    if [ $? -eq 0 ]; then
+        echo " $(date +%T) Router is created."
+    else
+        echo " $(date +%T) Fail to create Router."
+        exit 1
+    fi
 fi
 
+# Set external gateway for the router
 openstack router set --external-gateway ext-net router_1${tag} 1>/dev/null
-
-
 if [ $? -eq 0 ]; then
-    echo " $(date +%T ) set external-gateway to router."
+    echo " $(date +%T) Set external-gateway to router."
 else
-    echo " $(date +%T ) Fail to set external-gateway to router"
+    echo " $(date +%T) Fail to set external-gateway to router."
     exit 1
 fi
 
+# Check if the private subnet is already attached to the router
+if openstack router show router_1${tag} -f json | jq -r '.interfaces_info[].subnet_id' | grep -q $(openstack subnet show private_subnet${tag} -f json | jq -r '.id'); then
+    echo " $(date +%T) Private subnet is already attached to the router."
+else
+    openstack router add subnet router_1${tag} private_subnet${tag} 1>/dev/null
+    if [ $? -eq 0 ]; then
+        echo " $(date +%T) Private subnet added to router."
+    else
+        echo " $(date +%T) Failed to add private subnet to router."
+        exit 1
+    fi
+fi
 
-openstack router add subnet router_1${tag} private_subnet${tag} 1>/dev/null
+# Check if the public subnet is already attached to the router
+if openstack router show router_1${tag} -f json | jq -r '.interfaces_info[].subnet_id' | grep -q $(openstack subnet show public_subnet${tag} -f json | jq -r '.id'); then
+    echo " $(date +%T) Public subnet is already attached to the router."
+else
+    openstack router add subnet router_1${tag} public_subnet${tag} 1>/dev/null
+    if [ $? -eq 0 ]; then
+        echo " $(date +%T) Public subnet added to router."
+    else
+        echo " $(date +%T) Failed to add public subnet to router."
+        exit 1
+    fi
+fi
 
-openstack router add subnet router_1${tag} public_subnet${tag} 1>/dev/null
+echo " $(date +%T) Subnets are added to the router."
 
-echo " $(date +%T ) subnet are added to router's"
-
-
+# Create floating IPs for bastion and haproxy
 floating_ip_bastion=$(openstack floating ip create --tag ${tag} ext-net -f json | jq -r .name)
-
 if [ $? -eq 0 ]; then
-    echo " $(date +%T ) Floating IP for bastion is create $floating_ip_bastion"
+    echo " $(date +%T) Floating IP for bastion is created: $floating_ip_bastion"
 else
-    echo " $(date +%T ) Fail to create bastion floating IP"
+    echo " $(date +%T) Fail to create bastion floating IP."
     exit 1
 fi
-
 
 floating_ip_haproxy=$(openstack floating ip create --tag ${tag} ext-net -f json | jq -r .name) 
-
 if [ $? -eq 0 ]; then
-    echo " $(date +%T ) Floating IP for haproxy is create $floating_ip_haproxy"
+    echo " $(date +%T) Floating IP for haproxy is created: $floating_ip_haproxy"
 else
-    echo " $(date +%T ) Fail to create haproxy floating IP"
+    echo " $(date +%T) Fail to create haproxy floating IP."
     exit 1
 fi
 
-cat <<EOF > ~/.ssh/config
+
+cat <<EOF > ./.ssh/config
 Host bastion
     Hostname $floating_ip_bastion
     User ubuntu
-    IdentityFile ~/.ssh/$sshkey
+    IdentityFile ${sshkey}
 
 Host proxy
     Hostname $floating_ip_haproxy
     User ubuntu
-    IdentityFile ~/.ssh/$sshkey
+    IdentityFile ${sshkey}
 
 EOF
 
@@ -622,7 +719,7 @@ if [ -z "$image_name" ] || [ -z "$flavor_name" ] || [ -z "$sshkey" ] || [ -z "$t
     exit 1
 fi
 
-openstack server create --os-compute-api-version 2.52 --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${sshkey} --security-group external_security_group${tag}  -f json  bastion${tag} 2>&1 > /dev/null
+openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${ssh_basename} --security-group external_security_group${tag}  bastion${tag} 2>&1 > /dev/null
 
 if [ $? -eq 0 ]; then
     echo " $(date +%T ) Bastion machine is create "
@@ -631,7 +728,7 @@ else
     exit 1
 fi
 
-openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${sshkey} --security-group external_security_group${tag}  -f json  proxy_1${tag} 2>&1 > /dev/null
+openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${ssh_basename} --security-group external_security_group${tag}  proxy_1${tag} 2>&1 > /dev/null
 
 if [ $? -eq 0 ]; then
     echo " $(date +%T ) proxy machine is create "
@@ -641,7 +738,7 @@ else
 fi
 
 
-openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${sshkey} --security-group external_security_group${tag}  -f json  proxy_2${tag} 2>&1 > /dev/null
+openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_public${tag} --key-name ${ssh_basename} --security-group external_security_group${tag}  proxy_2${tag} 2>&1 > /dev/null
 
 if [ $? -eq 0 ]; then
     echo " $(date +%T ) proxy machine is create "
@@ -671,7 +768,7 @@ fi
 
 for x in $(seq 1 $nofn); do
 
-  openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name ${sshkey} --security-group internal_security_group${tag} -f json  dev_"$x"${tag}  1>/dev/null
+  openstack server create  --image "$image_name" --flavor "$flavor_name" --network vrundhavan_private${tag} --key-name ${ssh_basename} --security-group internal_security_group${tag} dev_"$x"${tag}  1>/dev/null
 
   if [ $? -eq 0 ]; then
       echo " $(date +%T ) dev${x} is created "
@@ -682,36 +779,13 @@ for x in $(seq 1 $nofn); do
 done
 
 
-# Start writing the inventory file
+process_servers_json 2>error.log
 
-grep -q "bastion" /etc/hosts
-
-if [ $? -eq 0 ]; then
-    # If "bastion" exists, replace the line with the new IP and hostname
-    sudo sed -i "/bastion/c\\$floating_ip_bastion bastion" /etc/hosts
-else
-    # If "bastion" does not exist, add the new IP and hostname to the file
-    echo "$floating_ip_bastion bastion" | sudo tee -a /etc/hosts > /dev/null
-fi
-
-grep -q "proxy" /etc/hosts
-
-if [ $? -eq 0 ]; then
-    # If "bastion" exists, replace the line with the new IP and hostname
-    sudo sed -i "/proxy/c\\$floating_ip_haproxy proxy" /etc/hosts
-else
-    # If "bastion" does not exist, add the new IP and hostname to the file
-    echo "$floating_ip_haproxy proxy" | sudo tee -a /etc/hosts > /dev/null
-fi
-
- process_servers_json
-
- if [[ $? -ne 0 ]]; then
-    echo " $(date +%T) some thing wrong with JSON formate let's solve this by CSV"
+if grep -q "jq" error.log; then
+    echo " $(date +%T) Something wrong with JSON format. Let's solve this by CSV."
     process_servers_csv
 fi
-
-
+rm -rf error.log
 
 
 cat <<EOF > group_vars/all.yml
@@ -721,7 +795,7 @@ floatingIp:
   haproxy: $floating_ip_haproxy
 
 name:
-    key: $sshkey
+    key: ${ssh_basename}
     tag: $tag
 
 prometheus:
@@ -743,7 +817,15 @@ grafana:
 EOF
 
 
-sudo chmod 0600 ~/.ssh/${sshkey} > /dev/null 2>&1
+file_permissions=$(stat -c "%a" ${sshkey})
+
+# Check if the permissions are equal to 0600
+if [ "$file_permissions" -eq 600 ]; then
+    echo " $(date +%T) The file has the correct permissions: 0600"
+else
+    echo " $(date +%T) The file ${sshkey} does not have the correct permissions. Current permissions: $file_permissions"
+    sudo chmod 0600 ${sshkey} > /dev/null 2>&1
+fi
 
 rm -rf roles/ansible/files/*.zip > /dev/null 2>&1
 
@@ -755,14 +837,13 @@ cd NSO_A2
 
 cp openrc_file  roles/keepalived/files > /dev/null 2>&1
 
-ssh-keygen -f "~/.ssh/known_hosts" -R "bastion" > /dev/null 2>&1
+# ssh-keygen -f "~/.ssh/known_hosts" -R "bastion" > /dev/null 2>&1
 
-ssh-keygen -f "~/.ssh/known_hosts" -R $floating_ip_bastion > /dev/null 2>&1
+# ssh-keygen -f "~/.ssh/known_hosts" -R $floating_ip_bastion > /dev/null 2>&1
 
-ssh-keygen -f "~/.ssh/known_hosts" -R $floating_ip_haproxy > /dev/null 2>&1
+# ssh-keygen -f "~/.ssh/known_hosts" -R $floating_ip_haproxy > /dev/null 2>&1
 
-ssh-keygen -f "~/.ssh/known_hosts" -R "proxy" > /dev/null 2>&1
-
+# ssh-keygen -f "~/.ssh/known_hosts" -R "proxy" > /dev/null 2>&1
 
 
 >ansible.cfg
@@ -770,7 +851,7 @@ ssh-keygen -f "~/.ssh/known_hosts" -R "proxy" > /dev/null 2>&1
 grep -oP '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b' environments/prod > /dev/null
 
 if [[ $? -eq 0 ]]; then
-    echo "Seems like the inventory file is fine."
+    echo " $(date +%T) Seems like the inventory file is fine."
     cat <<EOF > ansible.cfg
 [defaults]
 remote_user = ubuntu
@@ -783,7 +864,7 @@ EOF
 else
     cat environments/prod
     echo "-----------------------------------------"
-    cat ~/.ssh/config
+    cat ./.ssh/config
     echo "Do you want to change the inventory file? (y/n)"
     read -p "Enter your choice by viewing the SSH config file and environment: " cho
     if [[ $cho == "Y" || $cho == "y" ]]; then
@@ -825,5 +906,14 @@ cp ansible.cfg roles/ansible/files
 
 ansible-playbook app.yml
 
+echo "Let's test " 
+
+curl $floating_ip_haproxy:5000
+curl $floating_ip_haproxy:5000
+curl $floating_ip_haproxy:5000
+
+snmpwalk -v2c -c public $floating_ip_haproxy:6000 iso.3.6.1.2.1.1.1.0
+snmpwalk -v2c -c public $floating_ip_haproxy:6000 iso.3.6.1.2.1.1.1.0
+snmpwalk -v2c -c public $floating_ip_haproxy:6000 iso.3.6.1.2.1.1.1.0
 
 
