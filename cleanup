@@ -9,16 +9,16 @@ source $openrc_file
 ssh_basename=$(basename $sshkey)
 
 # Check if the keypair exists and prompt for deletion
-openstack keypair list | grep ${ssh_basename} > /dev/null
+openstack keypair list | grep ${ssh_basename}${tag} > /dev/null
 if [[ $? -eq 0 ]]; then
     echo -n " $(date +%T) Specify if you want to delete key pair from the cloud (y/n): "
     read -r -t 2 response
     if [[ "$response" == "y" || "$response" == "Y" ]]; then
-        openstack keypair delete "${ssh_basename}" 2>&1 > /dev/null
+        openstack keypair delete "${ssh_basename}${tag}" 2>&1 > /dev/null
         if [ $? = 0 ]; then
             echo " $(date +%T) Key pair ${ssh_basename} deleted successfully."
         else
-            if openstack keypair list | grep -q ${ssh_basename}; then
+            if openstack keypair list | grep -q ${ssh_basename}${tag}; then
                 echo "$(date +%T) Failed to delete key pair ${ssh_basename}."
             else
                 echo "$(date +%T) Key pair ${ssh_basename} did not exist."
