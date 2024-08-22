@@ -903,7 +903,8 @@ EOF
 fi
 
 cp ansible.cfg roles/ansible/files
-
+echo " $(date +%T) wait for 60 sec before applying configurations"
+sleep 60
 ansible-playbook app.yml
 
 echo "Let's test " 
