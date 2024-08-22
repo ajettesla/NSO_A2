@@ -535,7 +535,7 @@ fi
 
 
 echo " $(date +%T) wait for 60 sec before applying configurations"
-sleep 6
+sleep 60
 ansible-playbook app.yml
         
     else
