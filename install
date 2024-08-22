@@ -491,7 +491,7 @@ else
     echo " $(date +%T) Keypair does not exist locally. Generating a new SSH key pair..."
     ssh-keygen -t rsa -b 4096 -f ${sshkey} -N "" > /dev/null
     echo " $(date +%T) Keypair generated. Uploading public key to OpenStack..."
-    openstack keypair create --public-key ${sshkey}.pub ${sshkey}
+    openstack keypair create --public-key ${sshkey}.pub ${ssh_basename}${tag}
     if [[ $? -eq 0 ]]; then
         echo " $(date +%T) Public key uploaded successfully."
     else   
